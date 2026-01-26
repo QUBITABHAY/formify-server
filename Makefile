@@ -62,11 +62,11 @@ db-down:
 
 db-migrate:
 	@echo "Running migrations..."
-	sqlc generate
+	cd internal/database && sqlc generate
 
 sqlc:
 	@echo "Generating code from SQL..."
-	sqlc generate
+	cd internal/database && sqlc generate
 
 # Installation helpers
 install-dev-tools:
