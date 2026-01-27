@@ -5,8 +5,74 @@
 package db
 
 import (
+	"database/sql/driver"
+	"fmt"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type FormStatus string
+
+const (
+	FormStatusDraft     FormStatus = "draft"
+	FormStatusPublished FormStatus = "published"
+)
+
+func (e *FormStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = FormStatus(s)
+	case string:
+		*e = FormStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for FormStatus: %T", src)
+	}
+	return nil
+}
+
+type NullFormStatus struct {
+	FormStatus FormStatus `json:"form_status"`
+	Valid      bool       `json:"valid"` // Valid is true if FormStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullFormStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.FormStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.FormStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullFormStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.FormStatus), nil
+}
+
+type Form struct {
+	ID          int32              `json:"id"`
+	Name        string             `json:"name"`
+	Description pgtype.Text        `json:"description"`
+	UserID      int32              `json:"user_id"`
+	Status      NullFormStatus     `json:"status"`
+	Schema      []byte             `json:"schema"`
+	Settings    []byte             `json:"settings"`
+	ShareUrl    pgtype.Text        `json:"share_url"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Response struct {
+	ID        int32              `json:"id"`
+	FormID    int32              `json:"form_id"`
+	Data      []byte             `json:"data"`
+	Meta      []byte             `json:"meta"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
 
 type User struct {
 	ID            int32              `json:"id"`

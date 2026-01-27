@@ -6,15 +6,37 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
-	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	CountFormsByUserID(ctx context.Context, userID int32) (int64, error)
+	CountResponsesByFormID(ctx context.Context, formID int32) (int64, error)
+	CreateForm(ctx context.Context, arg CreateFormParams) (Form, error)
+	CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams) (User, error)
+	CreateResponse(ctx context.Context, arg CreateResponseParams) (Response, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteForm(ctx context.Context, id int32) error
+	DeleteResponse(ctx context.Context, id int32) error
+	DeleteResponsesByFormID(ctx context.Context, formID int32) error
 	DeleteUser(ctx context.Context, id int32) error
-	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
-	GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, error)
-	ListUsers(ctx context.Context) ([]ListUsersRow, error)
-	UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error)
+	GetFormByID(ctx context.Context, id int32) (Form, error)
+	GetFormByShareURL(ctx context.Context, shareUrl pgtype.Text) (Form, error)
+	GetResponseByID(ctx context.Context, id int32) (Response, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByID(ctx context.Context, id int32) (User, error)
+	GetUserByOAuthID(ctx context.Context, arg GetUserByOAuthIDParams) (User, error)
+	ListFormsByUserID(ctx context.Context, userID int32) ([]Form, error)
+	ListPublishedFormsByUserID(ctx context.Context, userID int32) ([]Form, error)
+	ListResponsesByFormID(ctx context.Context, formID int32) ([]Response, error)
+	ListResponsesByFormIDPaginated(ctx context.Context, arg ListResponsesByFormIDPaginatedParams) ([]Response, error)
+	ListUsers(ctx context.Context) ([]User, error)
+	UpdateForm(ctx context.Context, arg UpdateFormParams) (Form, error)
+	UpdateFormShareURL(ctx context.Context, arg UpdateFormShareURLParams) (Form, error)
+	UpdateFormStatus(ctx context.Context, arg UpdateFormStatusParams) (Form, error)
+	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
+	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }
 
 var _ Querier = (*Queries)(nil)
