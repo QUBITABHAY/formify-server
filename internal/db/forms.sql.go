@@ -29,7 +29,7 @@ INSERT INTO forms (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7
 )
-RETURNING id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
+RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
 `
 
 type CreateFormParams struct {
@@ -55,6 +55,7 @@ func (q *Queries) CreateForm(ctx context.Context, arg CreateFormParams) (Form, e
 	var i Form
 	err := row.Scan(
 		&i.ID,
+		&i.FormID,
 		&i.Name,
 		&i.Description,
 		&i.UserID,
@@ -79,7 +80,7 @@ func (q *Queries) DeleteForm(ctx context.Context, id int32) error {
 }
 
 const getFormByID = `-- name: GetFormByID :one
-SELECT id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
+SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
 WHERE id = $1
 `
 
@@ -88,6 +89,7 @@ func (q *Queries) GetFormByID(ctx context.Context, id int32) (Form, error) {
 	var i Form
 	err := row.Scan(
 		&i.ID,
+		&i.FormID,
 		&i.Name,
 		&i.Description,
 		&i.UserID,
@@ -102,7 +104,7 @@ func (q *Queries) GetFormByID(ctx context.Context, id int32) (Form, error) {
 }
 
 const getFormByShareURL = `-- name: GetFormByShareURL :one
-SELECT id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
+SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
 WHERE share_url = $1
 `
 
@@ -111,6 +113,7 @@ func (q *Queries) GetFormByShareURL(ctx context.Context, shareUrl pgtype.Text) (
 	var i Form
 	err := row.Scan(
 		&i.ID,
+		&i.FormID,
 		&i.Name,
 		&i.Description,
 		&i.UserID,
@@ -125,7 +128,7 @@ func (q *Queries) GetFormByShareURL(ctx context.Context, shareUrl pgtype.Text) (
 }
 
 const listFormsByUserID = `-- name: ListFormsByUserID :many
-SELECT id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
+SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -141,6 +144,7 @@ func (q *Queries) ListFormsByUserID(ctx context.Context, userID int32) ([]Form, 
 		var i Form
 		if err := rows.Scan(
 			&i.ID,
+			&i.FormID,
 			&i.Name,
 			&i.Description,
 			&i.UserID,
@@ -162,7 +166,7 @@ func (q *Queries) ListFormsByUserID(ctx context.Context, userID int32) ([]Form, 
 }
 
 const listPublishedFormsByUserID = `-- name: ListPublishedFormsByUserID :many
-SELECT id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
+SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
 WHERE user_id = $1 AND status = 'published'
 ORDER BY created_at DESC
 `
@@ -178,6 +182,7 @@ func (q *Queries) ListPublishedFormsByUserID(ctx context.Context, userID int32) 
 		var i Form
 		if err := rows.Scan(
 			&i.ID,
+			&i.FormID,
 			&i.Name,
 			&i.Description,
 			&i.UserID,
@@ -207,7 +212,7 @@ SET
     settings = COALESCE($5, settings),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
+RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
 `
 
 type UpdateFormParams struct {
@@ -229,6 +234,7 @@ func (q *Queries) UpdateForm(ctx context.Context, arg UpdateFormParams) (Form, e
 	var i Form
 	err := row.Scan(
 		&i.ID,
+		&i.FormID,
 		&i.Name,
 		&i.Description,
 		&i.UserID,
@@ -246,7 +252,7 @@ const updateFormShareURL = `-- name: UpdateFormShareURL :one
 UPDATE forms
 SET share_url = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
+RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
 `
 
 type UpdateFormShareURLParams struct {
@@ -259,6 +265,7 @@ func (q *Queries) UpdateFormShareURL(ctx context.Context, arg UpdateFormShareURL
 	var i Form
 	err := row.Scan(
 		&i.ID,
+		&i.FormID,
 		&i.Name,
 		&i.Description,
 		&i.UserID,
@@ -276,7 +283,7 @@ const updateFormStatus = `-- name: UpdateFormStatus :one
 UPDATE forms
 SET status = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
+RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
 `
 
 type UpdateFormStatusParams struct {
@@ -289,6 +296,7 @@ func (q *Queries) UpdateFormStatus(ctx context.Context, arg UpdateFormStatusPara
 	var i Form
 	err := row.Scan(
 		&i.ID,
+		&i.FormID,
 		&i.Name,
 		&i.Description,
 		&i.UserID,

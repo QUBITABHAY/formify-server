@@ -9,9 +9,11 @@ require (
 )
 
 require (
+	github.com/golang-migrate/migrate/v4 v4.19.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/lib/pq v1.11.1 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/time v0.14.0 // indirect

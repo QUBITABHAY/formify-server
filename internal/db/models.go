@@ -55,6 +55,7 @@ func (ns NullFormStatus) Value() (driver.Value, error) {
 
 type Form struct {
 	ID          int32              `json:"id"`
+	FormID      pgtype.Text        `json:"form_id"`
 	Name        string             `json:"name"`
 	Description pgtype.Text        `json:"description"`
 	UserID      int32              `json:"user_id"`

@@ -60,9 +60,34 @@ db-down:
 	@echo "Stopping database..."
 	docker compose -f infrastructure/docker-compose.yml down
 
-db-migrate:
-	@echo "Running migrations..."
-	cd internal/database && sqlc generate
+# Migration commands
+migrate-up:
+	@echo "⬆️  Applying migrations..."
+	go run ./cmd/migrate -up
+
+migrate-down:
+	@echo "⬇️  Rolling back last migration..."
+	go run ./cmd/migrate -down
+
+migrate-reset:
+	@echo "🔄 Resetting database..."
+	go run ./cmd/migrate -reset
+
+migrate-status:
+	@echo "📋 Migration status..."
+	go run ./cmd/migrate -version
+
+migrate-create:
+	@read -p "Migration name: " name; \
+	timestamp=$$(date +%Y%m%d%H%M%S); \
+	touch internal/database/migrations/$${timestamp}_$${name}.up.sql; \
+	touch internal/database/migrations/$${timestamp}_$${name}.down.sql; \
+	echo "✅ Created:"; \
+	echo "   internal/database/migrations/$${timestamp}_$${name}.up.sql"; \
+	echo "   internal/database/migrations/$${timestamp}_$${name}.down.sql"
+
+# Legacy migrate command (now uses golang-migrate)
+db-migrate: migrate-up
 
 sqlc:
 	@echo "Generating code from SQL..."

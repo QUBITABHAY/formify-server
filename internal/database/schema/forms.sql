@@ -2,6 +2,7 @@ create type form_status as enum ('draft', 'published');
 
 create table forms (
     id serial primary key,
+    form_id text unique,
     name varchar(100) not null,
     description text,
     user_id integer not null,
