@@ -29,6 +29,10 @@ type Form struct {
 type Repository interface {
 	Create(ctx context.Context, form *Form) error
 	GetByID(ctx context.Context, id int32) (*Form, error)
+	GetByShareURL(ctx context.Context, shareURL string) (*Form, error)
 	GetByUserID(ctx context.Context, userID int32) ([]*Form, error)
+	GetPublishedByUserID(ctx context.Context, userID int32) ([]*Form, error)
 	Update(ctx context.Context, form *Form) error
+	UpdateStatus(ctx context.Context, id int32, status Status) (*Form, error)
+	UpdateShareURL(ctx context.Context, id int32, shareURL string) (*Form, error)
 }

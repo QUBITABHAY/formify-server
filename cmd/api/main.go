@@ -8,6 +8,7 @@ import (
 	"formify/server/internal/database"
 	"formify/server/internal/db"
 	"formify/server/internal/form"
+	"formify/server/internal/response"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v5"
@@ -27,8 +28,11 @@ func main() {
 	queries := db.New(database.DBPool)
 
 	formRepo := form.NewRepository(queries)
+	responseRepo := response.NewRepository(queries)
 	formService := form.NewService(formRepo)
+	responseService := response.NewService(responseRepo)
 	formHandler := form.NewHandler(formService)
+	responseHandler := response.NewHandler(responseService)
 
 	e := echo.New()
 
@@ -43,8 +47,9 @@ func main() {
 	e.GET("/", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "Server is running")
 	})
-
 	api := e.Group("/api")
+
+	api.POST("/responses/:form_id", responseHandler.CreateResponse)
 
 	protected := api.Group("")
 	// Uncomment the following line to enable authentication middleware
@@ -55,6 +60,11 @@ func main() {
 	protected.POST("/forms", formHandler.CreateForm)
 	protected.GET("/forms/:id", formHandler.GetForm)
 	protected.PUT("/forms/:id", formHandler.UpdateForm)
+	protected.POST("/forms/:id/publish", formHandler.PublishForm)
+	protected.POST("/forms/:id/unpublish", formHandler.UnpublishForm)
+	protected.GET("/forms/:id/responses", responseHandler.GetFormResponses)
+
+	protected.GET("/responses/:id", responseHandler.GetResponse)
 
 	port := os.Getenv("PORT")
 	if port == "" {

@@ -155,3 +155,44 @@ func (h *Handler) UpdateForm(c *echo.Context) error {
 
 	return c.JSON(http.StatusOK, formToResponse(existingForm))
 }
+
+func (h *Handler) PublishForm(c *echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+	if err != nil {
+		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
+	}
+
+	form, err := h.service.PublishForm(c.Request().Context(), int32(id))
+	if err != nil {
+		return shared.RespondError(c, http.StatusInternalServerError, "Failed to publish form")
+	}
+
+	return c.JSON(http.StatusOK, formToResponse(form))
+}
+
+func (h *Handler) UnpublishForm(c *echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+	if err != nil {
+		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
+	}
+
+	form, err := h.service.UnpublishForm(c.Request().Context(), int32(id))
+	if err != nil {
+		return shared.RespondError(c, http.StatusInternalServerError, "Failed to unpublish form")
+	}
+
+	return c.JSON(http.StatusOK, formToResponse(form))
+}
+
+func (h *Handler) DeleteForm(c *echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+	if err != nil {
+		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
+	}
+
+	if err := h.service.DeleteForm(c.Request().Context(), int32(id)); err != nil {
+		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
