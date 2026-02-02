@@ -56,3 +56,7 @@ func (s *Service) UnpublishForm(ctx context.Context, id int32) (*Form, error) {
 func (s *Service) SetShareURL(ctx context.Context, id int32, shareURL string) (*Form, error) {
 	return s.formRepo.UpdateShareURL(ctx, id, shareURL)
 }
+
+func (s *Service) DeleteForm(ctx context.Context, id int32) error {
+	return s.formRepo.Delete(ctx, id)
+}

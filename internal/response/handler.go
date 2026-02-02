@@ -103,3 +103,16 @@ func (h *Handler) GetFormResponses(c *echo.Context) error {
 		"responses": result,
 	})
 }
+
+func (h *Handler) DeleteResponse(c *echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+	if err != nil {
+		return shared.RespondError(c, http.StatusBadRequest, "Invalid response ID")
+	}
+
+	if err := h.service.DeleteResponse(c.Request().Context(), int32(id)); err != nil {
+		return shared.RespondError(c, http.StatusInternalServerError, "Failed to delete response")
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}

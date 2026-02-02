@@ -60,11 +60,13 @@ func main() {
 	protected.POST("/forms", formHandler.CreateForm)
 	protected.GET("/forms/:id", formHandler.GetForm)
 	protected.PUT("/forms/:id", formHandler.UpdateForm)
+	protected.DELETE("/forms/:id", formHandler.DeleteForm)
 	protected.POST("/forms/:id/publish", formHandler.PublishForm)
 	protected.POST("/forms/:id/unpublish", formHandler.UnpublishForm)
 	protected.GET("/forms/:id/responses", responseHandler.GetFormResponses)
 
 	protected.GET("/responses/:id", responseHandler.GetResponse)
+	protected.DELETE("/responses/:id", responseHandler.DeleteResponse)
 
 	port := os.Getenv("PORT")
 	if port == "" {

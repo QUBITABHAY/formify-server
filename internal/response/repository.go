@@ -66,6 +66,14 @@ func (r *repository) GetByFormIDPaginated(ctx context.Context, formID int32, lim
 	return r.mapDBResponsesToModel(dbResponses), nil
 }
 
+func (r *repository) Delete(ctx context.Context, id int32) error {
+	return r.queries.DeleteResponse(ctx, id)
+}
+
+func (r *repository) DeleteByFormID(ctx context.Context, formID int32) error {
+	return r.queries.DeleteResponsesByFormID(ctx, formID)
+}
+
 func (r *repository) mapDBResponseToModel(dbResponse db.Response, response *Response) {
 	response.ID = dbResponse.ID
 	response.FormID = dbResponse.FormID

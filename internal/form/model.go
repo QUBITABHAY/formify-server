@@ -35,4 +35,5 @@ type Repository interface {
 	Update(ctx context.Context, form *Form) error
 	UpdateStatus(ctx context.Context, id int32, status Status) (*Form, error)
 	UpdateShareURL(ctx context.Context, id int32, shareURL string) (*Form, error)
+	Delete(ctx context.Context, id int32) error
 }

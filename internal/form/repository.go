@@ -120,6 +120,10 @@ func (r *repository) UpdateShareURL(ctx context.Context, id int32, shareURL stri
 	return form, nil
 }
 
+func (r *repository) Delete(ctx context.Context, id int32) error {
+	return r.queries.DeleteForm(ctx, id)
+}
+
 func (r *repository) mapDBFormToModel(dbForm db.Form, form *Form) {
 	form.ID = dbForm.ID
 	form.FormID = shared.PgtypeTextToString(dbForm.FormID)
