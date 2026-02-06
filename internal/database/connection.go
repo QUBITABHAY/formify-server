@@ -2,16 +2,15 @@ package database
 
 import (
 	"context"
-	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var DBPool *pgxpool.Pool
 
-func InitDB() error {
+func InitDB(databaseURL string) error {
 	var err error
-	DBPool, err = pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+	DBPool, err = pgxpool.New(context.Background(), databaseURL)
 	if err != nil {
 		return err
 	}

@@ -1,26 +1,47 @@
 package config
 
 import (
-	"os"
+	"log"
+	"strings"
+
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Port        string
-	DatabaseURL string
-	JWTSecret   string
+	Port               string `mapstructure:"PORT"`
+	DatabaseURL        string `mapstructure:"DATABASE_URL"`
+	JWTSecret          string `mapstructure:"JWT_SECRET"`
+	SessionSecret      string `mapstructure:"SESSION_SECRET"`
+	GoogleClientID     string `mapstructure:"GOOGLE_CLIENT_ID"`
+	GoogleClientSecret string `mapstructure:"GOOGLE_CLIENT_SECRET"`
+	GoogleCallbackURL  string `mapstructure:"GOOGLE_CALLBACK_URL"`
+	FrontendURL        string `mapstructure:"FRONTEND_URL"`
 }
 
 func Load() *Config {
-	return &Config{
-		Port:        getEnv("PORT", "8080"),
-		DatabaseURL: getEnv("DATABASE_URL", ""),
-		JWTSecret:   getEnv("JWT_SECRET", ""),
-	}
-}
+	viper.SetConfigFile(".env")
+	viper.SetConfigType("env")
+	viper.AutomaticEnv()
+	viper.SetDefault("PORT", "1323")
+	viper.SetDefault("SESSION_SECRET", "formify-session-secret")
+	viper.SetDefault("GOOGLE_CALLBACK_URL", "http://localhost:1323/api/auth/google/callback")
+	viper.SetDefault("FRONTEND_URL", "http://localhost:5173")
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+	if err := viper.ReadInConfig(); err != nil {
+		log.Println("No .env file found, using environment variables")
 	}
-	return defaultValue
+
+	for _, key := range []string{
+		"PORT", "DATABASE_URL", "JWT_SECRET", "SESSION_SECRET",
+		"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_CALLBACK_URL",
+		"FRONTEND_URL",
+	} {
+		_ = viper.BindEnv(key, strings.ToUpper(key))
+	}
+
+	cfg := &Config{}
+	if err := viper.Unmarshal(cfg); err != nil {
+		log.Fatalf("Failed to unmarshal config: %v", err)
+	}
+	return cfg
 }

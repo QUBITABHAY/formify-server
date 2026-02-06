@@ -1,0 +1,86 @@
+package auth
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+
+	"formify/server/internal/shared"
+	"formify/server/internal/user"
+
+	"github.com/labstack/echo/v5"
+	"github.com/markbates/goth/gothic"
+)
+
+func (h *Handler) GoogleLogin(c *echo.Context) error {
+	r := c.Request()
+	w := c.Response()
+
+	q := r.URL.Query()
+	q.Set("provider", "google")
+	r.URL.RawQuery = q.Encode()
+
+	gothic.BeginAuthHandler(w, r)
+	return nil
+}
+
+func (h *Handler) GoogleCallback(c *echo.Context) error {
+	r := c.Request()
+	w := c.Response()
+
+	q := r.URL.Query()
+	q.Set("provider", "google")
+	r.URL.RawQuery = q.Encode()
+
+	gothUser, err := gothic.CompleteUserAuth(w, r)
+	if err != nil {
+		return shared.RespondError(c, http.StatusUnauthorized, fmt.Sprintf("OAuth authentication failed: %v", err))
+	}
+
+	provider := "google"
+	existingUser, err := h.userService.GetUserByOAuthID(c.Request().Context(), provider, gothUser.UserID)
+	if err != nil && !errors.Is(err, user.ErrUserNotFound) {
+		return shared.RespondError(c, http.StatusInternalServerError, "Failed to look up user")
+	}
+
+	var u *user.User
+
+	if existingUser != nil {
+		u = existingUser
+	} else {
+		existingByEmail, err := h.userService.GetUserByEmail(c.Request().Context(), gothUser.Email)
+		if err != nil && !errors.Is(err, user.ErrUserNotFound) {
+			return shared.RespondError(c, http.StatusInternalServerError, "Failed to look up user")
+		}
+
+		if existingByEmail != nil {
+			existingByEmail.OAuthProvider = &provider
+			existingByEmail.OAuthID = &gothUser.UserID
+			existingByEmail.IsOAuth = true
+			if err := h.userService.UpdateUser(c.Request().Context(), existingByEmail); err != nil {
+				return shared.RespondError(c, http.StatusInternalServerError, "Failed to link OAuth account")
+			}
+			u = existingByEmail
+		} else {
+			u = &user.User{
+				Name:          gothUser.Name,
+				Email:         gothUser.Email,
+				OAuthProvider: &provider,
+				OAuthID:       &gothUser.UserID,
+				IsOAuth:       true,
+			}
+			if err := h.userService.CreateOAuthUser(c.Request().Context(), u); err != nil {
+				return shared.RespondError(c, http.StatusInternalServerError, "Failed to create user")
+			}
+		}
+	}
+
+	token, err := h.service.GenerateJWT(u)
+	if err != nil {
+		return shared.RespondError(c, http.StatusInternalServerError, "Failed to generate token")
+	}
+
+	h.setTokenCookie(c, token)
+
+	return c.Redirect(http.StatusTemporaryRedirect, h.frontendURL+"/auth/callback")
+}
