@@ -13,16 +13,18 @@ import (
 const CookieName = "token"
 
 type Handler struct {
-	service     *Service
-	userService *user.Service
-	frontendURL string
+	service      *Service
+	userService  *user.Service
+	frontendURL  string
+	cookieSecure bool
 }
 
-func NewHandler(service *Service, userService *user.Service, frontendURL string) *Handler {
+func NewHandler(service *Service, userService *user.Service, frontendURL string, cookieSecure bool) *Handler {
 	return &Handler{
-		service:     service,
-		userService: userService,
-		frontendURL: frontendURL,
+		service:      service,
+		userService:  userService,
+		frontendURL:  frontendURL,
+		cookieSecure: cookieSecure,
 	}
 }
 
@@ -47,7 +49,7 @@ func (h *Handler) setTokenCookie(c *echo.Context, token string) {
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
+		Secure:   h.cookieSecure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(24 * time.Hour / time.Second),
 	}
@@ -60,7 +62,7 @@ func (h *Handler) clearTokenCookie(c *echo.Context) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
+		Secure:   h.cookieSecure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	}

@@ -1,6 +1,7 @@
 package response
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -11,12 +12,18 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-type Handler struct {
-	service *Service
+type FormChecker interface {
+	IsPublished(ctx context.Context, formID int32) (bool, error)
+	GetFormOwnerID(ctx context.Context, formID int32) (int32, error)
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+type Handler struct {
+	service     *Service
+	formChecker FormChecker
+}
+
+func NewHandler(service *Service, formChecker FormChecker) *Handler {
+	return &Handler{service: service, formChecker: formChecker}
 }
 
 type CreateResponseRequest struct {
@@ -48,6 +55,14 @@ func (h *Handler) CreateResponse(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
 	}
 
+	published, err := h.formChecker.IsPublished(c.Request().Context(), int32(formID))
+	if err != nil {
+		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+	if !published {
+		return shared.RespondError(c, http.StatusForbidden, "Form is not accepting responses")
+	}
+
 	var req CreateResponseRequest
 	if err := c.Bind(&req); err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
@@ -67,6 +82,11 @@ func (h *Handler) CreateResponse(c *echo.Context) error {
 }
 
 func (h *Handler) GetResponse(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid response ID")
@@ -77,13 +97,34 @@ func (h *Handler) GetResponse(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusNotFound, "Response not found")
 	}
 
+	ownerID, err := h.formChecker.GetFormOwnerID(c.Request().Context(), response.FormID)
+	if err != nil {
+		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+	if ownerID != authUserID {
+		return shared.RespondError(c, http.StatusForbidden, "Access denied")
+	}
+
 	return c.JSON(http.StatusOK, responseToResponse(response))
 }
 
 func (h *Handler) GetFormResponses(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	formID, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
+	}
+
+	ownerID, err := h.formChecker.GetFormOwnerID(c.Request().Context(), int32(formID))
+	if err != nil {
+		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+	if ownerID != authUserID {
+		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
 	ctx := c.Request().Context()
@@ -105,9 +146,27 @@ func (h *Handler) GetFormResponses(c *echo.Context) error {
 }
 
 func (h *Handler) DeleteResponse(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid response ID")
+	}
+
+	response, err := h.service.GetResponseByID(c.Request().Context(), int32(id))
+	if err != nil {
+		return shared.RespondError(c, http.StatusNotFound, "Response not found")
+	}
+
+	ownerID, err := h.formChecker.GetFormOwnerID(c.Request().Context(), response.FormID)
+	if err != nil {
+		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+	if ownerID != authUserID {
+		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
 	if err := h.service.DeleteResponse(c.Request().Context(), int32(id)); err != nil {

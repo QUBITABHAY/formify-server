@@ -39,8 +39,8 @@ func main() {
 
 	userHandler := user.NewHandler(userService)
 	formHandler := form.NewHandler(formService)
-	responseHandler := response.NewHandler(responseService)
-	authHandler := auth.NewHandler(authService, userService, cfg.FrontendURL)
+	responseHandler := response.NewHandler(responseService, formService)
+	authHandler := auth.NewHandler(authService, userService, cfg.FrontendURL, cfg.IsProduction())
 
 	auth.InitProviders(
 		cfg.GoogleClientID,
@@ -54,7 +54,7 @@ func main() {
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     cfg.GetCORSOrigins(),
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -75,7 +75,7 @@ func main() {
 	auth.GET("/google/callback", authHandler.GoogleCallback)
 
 	api.POST("/users", userHandler.CreateUser)
-
+	api.GET("/forms/share/:share_url", formHandler.GetPublicFormsByShareURL)
 	api.POST("/forms/:form_id/responses", responseHandler.CreateResponse)
 
 	protected := api.Group("")
