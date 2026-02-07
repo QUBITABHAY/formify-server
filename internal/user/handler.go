@@ -57,9 +57,18 @@ func (h *Handler) CreateUser(c *echo.Context) error {
 }
 
 func (h *Handler) GetUser(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid user ID")
+	}
+
+	if int32(id) != authUserID {
+		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
 	user, err := h.service.GetUserByID(c.Request().Context(), int32(id))

@@ -1,6 +1,7 @@
 package form
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -63,19 +64,26 @@ func formToResponse(form *Form) FormResponse {
 }
 
 func (h *Handler) CreateForm(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	var req CreateFormRequest
 	if err := c.Bind(&req); err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
 	}
 
-	if req.Name == "" || req.UserID == 0 {
-		return shared.RespondError(c, http.StatusBadRequest, "Name and user_id are required")
+	if req.Name == "" {
+		return shared.RespondError(c, http.StatusBadRequest, "Name is required")
 	}
 
+	formID := base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
 	form := &Form{
+		FormID:      &formID,
 		Name:        req.Name,
 		Description: req.Description,
-		UserID:      req.UserID,
+		UserID:      authUserID,
 		Schema:      req.Schema,
 		Settings:    req.Settings,
 	}
@@ -88,6 +96,11 @@ func (h *Handler) CreateForm(c *echo.Context) error {
 }
 
 func (h *Handler) GetForm(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
@@ -98,13 +111,26 @@ func (h *Handler) GetForm(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusNotFound, "Form not found")
 	}
 
+	if form.UserID != authUserID {
+		return shared.RespondError(c, http.StatusForbidden, "Access denied")
+	}
+
 	return c.JSON(http.StatusOK, formToResponse(form))
 }
 
 func (h *Handler) GetUserForms(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid user ID")
+	}
+
+	if int32(userID) != authUserID {
+		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
 	forms, err := h.service.GetUserForms(c.Request().Context(), int32(userID))
@@ -120,7 +146,30 @@ func (h *Handler) GetUserForms(c *echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
+func (h *Handler) GetPublicFormsByShareURL(c *echo.Context) error {
+	shareURL := c.Param("share_url")
+	if shareURL == "" {
+		return shared.RespondError(c, http.StatusBadRequest, "Invalid share URL")
+	}
+
+	form, err := h.service.GetFormByShareURL(c.Request().Context(), shareURL)
+	if err != nil {
+		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+
+	if form.Status != StatusPublished {
+		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+
+	return c.JSON(http.StatusOK, formToResponse(form))
+}
+
 func (h *Handler) UpdateForm(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
@@ -129,6 +178,10 @@ func (h *Handler) UpdateForm(c *echo.Context) error {
 	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
 	if err != nil {
 		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+
+	if existingForm.UserID != authUserID {
+		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
 	var req UpdateFormRequest
@@ -157,9 +210,22 @@ func (h *Handler) UpdateForm(c *echo.Context) error {
 }
 
 func (h *Handler) PublishForm(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
+	}
+
+	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
+	if err != nil {
+		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+	if existingForm.UserID != authUserID {
+		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
 	form, err := h.service.PublishForm(c.Request().Context(), int32(id))
@@ -171,9 +237,22 @@ func (h *Handler) PublishForm(c *echo.Context) error {
 }
 
 func (h *Handler) UnpublishForm(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
+	}
+
+	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
+	if err != nil {
+		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+	if existingForm.UserID != authUserID {
+		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
 	form, err := h.service.UnpublishForm(c.Request().Context(), int32(id))
@@ -185,13 +264,26 @@ func (h *Handler) UnpublishForm(c *echo.Context) error {
 }
 
 func (h *Handler) DeleteForm(c *echo.Context) error {
+	authUserID, ok := shared.GetAuthUserID(c)
+	if !ok {
+		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
 	}
 
-	if err := h.service.DeleteForm(c.Request().Context(), int32(id)); err != nil {
+	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
+	if err != nil {
 		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+	if existingForm.UserID != authUserID {
+		return shared.RespondError(c, http.StatusForbidden, "Access denied")
+	}
+
+	if err := h.service.DeleteForm(c.Request().Context(), int32(id)); err != nil {
+		return shared.RespondError(c, http.StatusInternalServerError, "Failed to delete form")
 	}
 
 	return c.NoContent(http.StatusNoContent)

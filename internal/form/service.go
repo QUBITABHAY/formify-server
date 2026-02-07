@@ -2,6 +2,8 @@ package form
 
 import (
 	"context"
+
+	"formify/server/internal/shared"
 )
 
 type Service struct {
@@ -46,7 +48,18 @@ func (s *Service) UpdateForm(ctx context.Context, form *Form) error {
 }
 
 func (s *Service) PublishForm(ctx context.Context, id int32) (*Form, error) {
-	return s.formRepo.UpdateStatus(ctx, id, StatusPublished)
+	form, err := s.formRepo.UpdateStatus(ctx, id, StatusPublished)
+	if err != nil {
+		return nil, err
+	}
+	if form.ShareURL == nil {
+		shareURL, err := shared.GenerateShareURL(12)
+		if err != nil {
+			return nil, err
+		}
+		return s.formRepo.UpdateShareURL(ctx, id, shareURL)
+	}
+	return form, nil
 }
 
 func (s *Service) UnpublishForm(ctx context.Context, id int32) (*Form, error) {
@@ -59,4 +72,20 @@ func (s *Service) SetShareURL(ctx context.Context, id int32, shareURL string) (*
 
 func (s *Service) DeleteForm(ctx context.Context, id int32) error {
 	return s.formRepo.Delete(ctx, id)
+}
+
+func (s *Service) GetFormOwnerID(ctx context.Context, formID int32) (int32, error) {
+	form, err := s.formRepo.GetByID(ctx, formID)
+	if err != nil {
+		return 0, err
+	}
+	return form.UserID, nil
+}
+
+func (s *Service) IsPublished(ctx context.Context, formID int32) (bool, error) {
+	form, err := s.formRepo.GetByID(ctx, formID)
+	if err != nil {
+		return false, err
+	}
+	return form.Status == StatusPublished, nil
 }

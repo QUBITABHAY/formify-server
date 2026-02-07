@@ -26,6 +26,7 @@ Public endpoints (no authentication required):
 
 - `POST /api/auth/login` - Email/password login
 - `POST /api/users` - Create user account
+- `GET /api/forms/share/:share_url` - Get published form by share URL
 - `POST /api/forms/:form_id/responses` - Submit form response
 - `GET /api/auth/google` - Google OAuth login
 - `GET /api/auth/google/callback` - Google OAuth callback
@@ -196,6 +197,39 @@ Retrieves a form by ID. Requires authentication.
 
 **Response:** `200 OK`
 
+
+### Get Public Form
+
+**GET** `/api/forms/share/:share_url`
+
+Retrieves a published form by share URL. No authentication required.
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": 1,
+  "name": "Customer Survey",
+  "description": "Optional description",
+  "user_id": 1,
+  "status": "published",
+  "schema": [],
+  "settings": {},
+  "share_url": "AbCdEf123...",
+  "created_at": "2024-01-28T12:00:00Z",
+  "updated_at": "2024-01-28T12:00:00Z"
+}
+```
+
+**Error:** `404 Not Found`
+
+```json
+{
+  "error": "Form not found"
+}
+```
+
+---
 ```json
 {
   "id": 1,
@@ -280,6 +314,7 @@ Updates form details. Requires authentication.
 **POST** `/api/forms/:id/publish` 🔒
 
 Sets a form's status to `published`. Requires authentication.
+If the form does not already have a `share_url`, one is generated.
 
 **Response:** `200 OK`
 
@@ -288,6 +323,7 @@ Sets a form's status to `published`. Requires authentication.
   "id": 1,
   "name": "Customer Survey",
   "status": "published",
+  "share_url": "AbCdEf123...",
   ...
 }
 ```
@@ -330,6 +366,7 @@ Deletes a form and all its responses. Requires authentication.
 **POST** `/api/forms/:form_id/responses`
 
 Submits a response to a form. No authentication required (public endpoint).
+Only published forms accept responses.
 
 **Request Body:**
 
@@ -361,6 +398,22 @@ Submits a response to a form. No authentication required (public endpoint).
     "userAgent": "Mozilla/5.0..."
   },
   "created_at": "2024-01-28T12:00:00Z"
+}
+```
+
+**Error:** `403 Forbidden`
+
+```json
+{
+  "error": "Form is not accepting responses"
+}
+```
+
+**Error:** `404 Not Found`
+
+```json
+{
+  "error": "Form not found"
 }
 ```
 
@@ -466,6 +519,7 @@ HTTP handlers that parse requests and return JSON responses.
 | --------------- | ----------------------------- | ---- | ----------------- |
 | `CreateForm`    | POST /api/forms               | 🔒   | Create a new form |
 | `GetForm`       | GET /api/forms/:id            | 🔒   | Get form by ID    |
+| `GetPublicFormsByShareURL` | GET /api/forms/share/:share_url |      | Get form by share URL |
 | `GetUserForms`  | GET /api/users/:id/forms      | 🔒   | Get user's forms  |
 | `UpdateForm`    | PUT /api/forms/:id            | 🔒   | Update form       |
 | `PublishForm`   | POST /api/forms/:id/publish   | 🔒   | Publish form      |

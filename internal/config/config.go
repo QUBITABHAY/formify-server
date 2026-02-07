@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	Port               string `mapstructure:"PORT"`
+	Env                string `mapstructure:"ENV"`
 	DatabaseURL        string `mapstructure:"DATABASE_URL"`
 	JWTSecret          string `mapstructure:"JWT_SECRET"`
 	SessionSecret      string `mapstructure:"SESSION_SECRET"`
@@ -16,6 +17,18 @@ type Config struct {
 	GoogleClientSecret string `mapstructure:"GOOGLE_CLIENT_SECRET"`
 	GoogleCallbackURL  string `mapstructure:"GOOGLE_CALLBACK_URL"`
 	FrontendURL        string `mapstructure:"FRONTEND_URL"`
+	CORSOrigins        string `mapstructure:"CORS_ORIGINS"`
+}
+
+func (c *Config) IsProduction() bool {
+	return c.Env == "production"
+}
+
+func (c *Config) GetCORSOrigins() []string {
+	if c.CORSOrigins != "" {
+		return strings.Split(c.CORSOrigins, ",")
+	}
+	return []string{c.FrontendURL}
 }
 
 func Load() *Config {
@@ -23,6 +36,7 @@ func Load() *Config {
 	viper.SetConfigType("env")
 	viper.AutomaticEnv()
 	viper.SetDefault("PORT", "1323")
+	viper.SetDefault("ENV", "development")
 	viper.SetDefault("SESSION_SECRET", "formify-session-secret")
 	viper.SetDefault("GOOGLE_CALLBACK_URL", "http://localhost:1323/api/auth/google/callback")
 	viper.SetDefault("FRONTEND_URL", "http://localhost:5173")
@@ -32,9 +46,9 @@ func Load() *Config {
 	}
 
 	for _, key := range []string{
-		"PORT", "DATABASE_URL", "JWT_SECRET", "SESSION_SECRET",
+		"PORT", "ENV", "DATABASE_URL", "JWT_SECRET", "SESSION_SECRET",
 		"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_CALLBACK_URL",
-		"FRONTEND_URL",
+		"FRONTEND_URL", "CORS_ORIGINS",
 	} {
 		_ = viper.BindEnv(key, strings.ToUpper(key))
 	}
