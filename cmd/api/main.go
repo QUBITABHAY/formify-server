@@ -33,7 +33,7 @@ func main() {
 	responseRepo := response.NewRepository(queries)
 
 	userService := user.NewService(userRepo)
-	formService := form.NewService(formRepo)
+	formService := form.NewService(formRepo, responseRepo)
 	responseService := response.NewService(responseRepo)
 	authService := auth.NewService(userRepo, userService, cfg.JWTSecret)
 

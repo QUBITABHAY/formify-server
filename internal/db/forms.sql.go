@@ -25,14 +25,15 @@ func (q *Queries) CountFormsByUserID(ctx context.Context, userID int32) (int64, 
 
 const createForm = `-- name: CreateForm :one
 INSERT INTO forms (
-    name, description, user_id, status, schema, settings, share_url
+    form_id, name, description, user_id, status, schema, settings, share_url
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8
 )
 RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
 `
 
 type CreateFormParams struct {
+	FormID      pgtype.Text    `json:"form_id"`
 	Name        string         `json:"name"`
 	Description pgtype.Text    `json:"description"`
 	UserID      int32          `json:"user_id"`
@@ -44,6 +45,7 @@ type CreateFormParams struct {
 
 func (q *Queries) CreateForm(ctx context.Context, arg CreateFormParams) (Form, error) {
 	row := q.db.QueryRow(ctx, createForm,
+		arg.FormID,
 		arg.Name,
 		arg.Description,
 		arg.UserID,

@@ -3,15 +3,17 @@ package form
 import (
 	"context"
 
+	"formify/server/internal/response"
 	"formify/server/internal/shared"
 )
 
 type Service struct {
-	formRepo Repository
+	formRepo     Repository
+	responseRepo response.Repository
 }
 
-func NewService(formRepo Repository) *Service {
-	return &Service{formRepo: formRepo}
+func NewService(formRepo Repository, responseRepo response.Repository) *Service {
+	return &Service{formRepo: formRepo, responseRepo: responseRepo}
 }
 
 func (s *Service) CreateForm(ctx context.Context, form *Form) error {
@@ -71,6 +73,9 @@ func (s *Service) SetShareURL(ctx context.Context, id int32, shareURL string) (*
 }
 
 func (s *Service) DeleteForm(ctx context.Context, id int32) error {
+	if err := s.responseRepo.DeleteByFormID(ctx, id); err != nil {
+		return err
+	}
 	return s.formRepo.Delete(ctx, id)
 }
 

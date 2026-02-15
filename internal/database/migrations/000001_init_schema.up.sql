@@ -46,3 +46,8 @@ CREATE TABLE IF NOT EXISTS responses (
 CREATE INDEX IF NOT EXISTS idx_forms_user_id ON forms(user_id);
 CREATE INDEX IF NOT EXISTS idx_forms_status ON forms(status);
 CREATE INDEX IF NOT EXISTS idx_responses_form_id ON responses(form_id);
+
+-- Add foreign key constraint to responses table
+ALTER TABLE responses 
+ADD CONSTRAINT fk_responses_form_id 
+FOREIGN KEY (form_id) REFERENCES forms(id) ON DELETE CASCADE;

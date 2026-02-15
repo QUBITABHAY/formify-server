@@ -22,6 +22,7 @@ func NewRepository(queries *db.Queries) Repository {
 
 func (r *repository) Create(ctx context.Context, form *Form) error {
 	dbForm, err := r.queries.CreateForm(ctx, db.CreateFormParams{
+		FormID:      shared.StringToPgtypeText(form.FormID),
 		Name:        form.Name,
 		Description: shared.StringToPgtypeText(form.Description),
 		UserID:      form.UserID,
