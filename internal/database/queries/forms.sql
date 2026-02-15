@@ -1,8 +1,8 @@
 -- name: CreateForm :one
 INSERT INTO forms (
-    name, description, user_id, status, schema, settings, share_url
+    form_id, name, description, user_id, status, schema, settings, share_url
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8
 )
 RETURNING *;
 

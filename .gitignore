@@ -34,5 +34,8 @@ tmp/
 bin/
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+# MacOS
+.DS_Store
