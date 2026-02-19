@@ -474,6 +474,221 @@ Deletes a specific response. Requires authentication.
 
 ---
 
+### Sync Response to Google Sheets
+
+**POST** `/api/responses/:id/sync` 🔒
+
+Manually syncs a single response to the linked Google Sheet. Requires authentication.
+
+**Response:** `200 OK`
+
+```json
+{
+  "message": "Response synced to Google Sheet",
+  "response_id": 42
+}
+```
+
+**Error:** `400 Bad Request`
+
+```json
+{
+  "error": "No Google Sheet linked to this form"
+}
+```
+
+---
+
+## Google Sheets Integration API
+
+### Link Google Sheet to Form
+
+**POST** `/api/forms/:id/sheets/link` 🔒
+
+Links an existing Google Sheet to a form with optional auto-sync setting. Requires authentication.
+
+**Request Body:**
+
+```json
+{
+  "spreadsheet_id": "YOUR_SPREADSHEET_ID",
+  "auto_sync": true
+}
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": 1,
+  "name": "Customer Survey",
+  "google_sheet_id": "YOUR_SPREADSHEET_ID",
+  "google_sheet_name": "Sheet Name",
+  "google_sheet_linked_at": "2026-02-19T12:00:00Z",
+  "google_sheet_auto_sync": true,
+  ...
+}
+```
+
+**Error:** `400 Bad Request`
+
+```json
+{
+  "error": "Cannot access spreadsheet. Make sure it's shared with the service account."
+}
+```
+
+**Error:** `503 Service Unavailable`
+
+```json
+{
+  "error": "Google Sheets integration is not configured"
+}
+```
+
+---
+
+### Create and Link Google Sheet
+
+**POST** `/api/forms/:id/sheets/create` 🔒
+
+Creates a new Google Sheet and links it to the form with optional auto-sync. Form responses are exported with appropriate column headers. Requires authentication.
+
+**Request Body:**
+
+```json
+{
+  "title": "Optional Custom Title",
+  "auto_sync": true
+}
+```
+
+If `title` is omitted, defaults to `"Form Name - Responses"`.
+
+**Response:** `201 Created`
+
+```json
+{
+  "form": {
+    "id": 1,
+    "name": "Customer Survey",
+    "google_sheet_id": "GENERATED_ID",
+    "google_sheet_name": "Customer Survey - Responses",
+    "google_sheet_auto_sync": true,
+    ...
+  },
+  "spreadsheet_id": "GENERATED_ID",
+  "spreadsheet_url": "https://docs.google.com/spreadsheets/d/GENERATED_ID"
+}
+```
+
+**Note:** The new spreadsheet will have "Form Responses" sheet with headers: "Submission ID", "Submitted At", followed by form field names.
+
+---
+
+### Unlink Google Sheet
+
+**DELETE** `/api/forms/:id/sheets/link` 🔒
+
+Removes the Google Sheet link from a form. Requires authentication.
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": 1,
+  "name": "Customer Survey",
+  "google_sheet_id": null,
+  "google_sheet_name": null,
+  "google_sheet_auto_sync": false,
+  ...
+}
+```
+
+---
+
+### Update Auto-Sync Setting
+
+**PUT** `/api/forms/:id/sheets/auto-sync` 🔒
+
+Updates the auto-sync setting for the linked Google Sheet. Requires authentication.
+
+**Request Body:**
+
+```json
+{
+  "auto_sync": false
+}
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": 1,
+  "name": "Customer Survey",
+  "google_sheet_auto_sync": false,
+  ...
+}
+```
+
+**Error:** `400 Bad Request`
+
+```json
+{
+  "error": "No Google Sheet linked to this form"
+}
+```
+
+---
+
+### Manually Sync All Form Responses
+
+**POST** `/api/forms/:id/sheets/sync` 🔒
+
+Manually syncs all responses for a form to the linked Google Sheet. Returns count of synced responses. Requires authentication.
+
+**Response:** `200 OK`
+
+```json
+{
+  "message": "Responses synced to Google Sheet",
+  "form_id": 1,
+  "synced_count": 42
+}
+```
+
+**Error:** `400 Bad Request`
+
+```json
+{
+  "error": "No Google Sheet linked to this form"
+}
+```
+
+**Error:** `503 Service Unavailable`
+
+```json
+{
+  "error": "Google Sheets integration is not configured"
+}
+```
+
+---
+
+### Auto-Sync Behavior
+
+When a form response is submitted and `google_sheet_auto_sync` is enabled:
+
+1. Response is saved to database (synchronously)
+2. Background task appends response to the linked Google Sheet (asynchronously)
+3. Response data is converted to spreadsheet row format matching form schema
+4. Any sync errors are logged but do not affect response creation
+
+**Note:** Auto-sync errors do not cause the response submission to fail. Check server logs for sync issues.
+
+---
+
 ## Health Check Endpoints
 
 ### Basic Health Check

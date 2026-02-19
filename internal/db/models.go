@@ -54,17 +54,21 @@ func (ns NullFormStatus) Value() (driver.Value, error) {
 }
 
 type Form struct {
-	ID          int32              `json:"id"`
-	FormID      pgtype.Text        `json:"form_id"`
-	Name        string             `json:"name"`
-	Description pgtype.Text        `json:"description"`
-	UserID      int32              `json:"user_id"`
-	Status      NullFormStatus     `json:"status"`
-	Schema      []byte             `json:"schema"`
-	Settings    []byte             `json:"settings"`
-	ShareUrl    pgtype.Text        `json:"share_url"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ID                  int32              `json:"id"`
+	FormID              pgtype.Text        `json:"form_id"`
+	Name                string             `json:"name"`
+	Description         pgtype.Text        `json:"description"`
+	UserID              int32              `json:"user_id"`
+	Status              NullFormStatus     `json:"status"`
+	Schema              []byte             `json:"schema"`
+	Settings            []byte             `json:"settings"`
+	ShareUrl            pgtype.Text        `json:"share_url"`
+	GoogleSheetID       pgtype.Text        `json:"google_sheet_id"`
+	GoogleSheetName     pgtype.Text        `json:"google_sheet_name"`
+	GoogleSheetLinkedAt pgtype.Timestamptz `json:"google_sheet_linked_at"`
+	GoogleSheetAutoSync pgtype.Bool        `json:"google_sheet_auto_sync"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Response struct {

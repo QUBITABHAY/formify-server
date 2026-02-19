@@ -54,3 +54,25 @@ WHERE id = $1;
 -- name: CountFormsByUserID :one
 SELECT COUNT(*) FROM forms
 WHERE user_id = $1;
+
+-- name: LinkGoogleSheet :one
+UPDATE forms
+SET google_sheet_id = $2, google_sheet_name = $3, google_sheet_linked_at = NOW(), google_sheet_auto_sync = $4, updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: UnlinkGoogleSheet :one
+UPDATE forms
+SET google_sheet_id = NULL, google_sheet_name = NULL, google_sheet_linked_at = NULL, google_sheet_auto_sync = false, updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateGoogleSheetAutoSync :one
+UPDATE forms
+SET google_sheet_auto_sync = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: GetFormsWithLinkedSheets :many
+SELECT * FROM forms
+WHERE google_sheet_id IS NOT NULL;

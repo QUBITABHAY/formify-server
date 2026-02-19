@@ -19,7 +19,10 @@ func InitProviders(googleClientID, googleClientSecret, googleCallbackURL, sessio
 			googleClientID,
 			googleClientSecret,
 			googleCallbackURL,
-			"email", "profile",
+			"email",
+			"profile",
+			"https://www.googleapis.com/auth/spreadsheets",
+			"https://www.googleapis.com/auth/drive.file",
 		),
 	)
 }

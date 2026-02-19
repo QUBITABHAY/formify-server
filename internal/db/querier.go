@@ -23,18 +23,22 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id int32) error
 	GetFormByID(ctx context.Context, id int32) (Form, error)
 	GetFormByShareURL(ctx context.Context, shareUrl pgtype.Text) (Form, error)
+	GetFormsWithLinkedSheets(ctx context.Context) ([]Form, error)
 	GetResponseByID(ctx context.Context, id int32) (Response, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int32) (User, error)
 	GetUserByOAuthID(ctx context.Context, arg GetUserByOAuthIDParams) (User, error)
+	LinkGoogleSheet(ctx context.Context, arg LinkGoogleSheetParams) (Form, error)
 	ListFormsByUserID(ctx context.Context, userID int32) ([]Form, error)
 	ListPublishedFormsByUserID(ctx context.Context, userID int32) ([]Form, error)
 	ListResponsesByFormID(ctx context.Context, formID int32) ([]Response, error)
 	ListResponsesByFormIDPaginated(ctx context.Context, arg ListResponsesByFormIDPaginatedParams) ([]Response, error)
 	ListUsers(ctx context.Context) ([]User, error)
+	UnlinkGoogleSheet(ctx context.Context, id int32) (Form, error)
 	UpdateForm(ctx context.Context, arg UpdateFormParams) (Form, error)
 	UpdateFormShareURL(ctx context.Context, arg UpdateFormShareURLParams) (Form, error)
 	UpdateFormStatus(ctx context.Context, arg UpdateFormStatusParams) (Form, error)
+	UpdateGoogleSheetAutoSync(ctx context.Context, arg UpdateGoogleSheetAutoSyncParams) (Form, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }
