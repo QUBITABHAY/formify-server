@@ -30,11 +30,29 @@ func PgtypeTimestamptzToTime(t pgtype.Timestamptz) time.Time {
 	return t.Time
 }
 
+func PgtypeTimestamptzToTimePtr(t pgtype.Timestamptz) *time.Time {
+	if !t.Valid {
+		return nil
+	}
+	return &t.Time
+}
+
 func PgtypeBoolToBool(b pgtype.Bool) bool {
 	if !b.Valid {
 		return false
 	}
 	return b.Bool
+}
+
+func BoolToPgtypeBool(b bool) pgtype.Bool {
+	return pgtype.Bool{Bool: b, Valid: true}
+}
+
+func TimeToPgtypeTimestamptz(t *time.Time) pgtype.Timestamptz {
+	if t == nil {
+		return pgtype.Timestamptz{Valid: false}
+	}
+	return pgtype.Timestamptz{Time: *t, Valid: true}
 }
 
 func GetAuthUserID(c *echo.Context) (int32, bool) {

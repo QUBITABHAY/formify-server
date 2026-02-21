@@ -39,7 +39,12 @@ Public endpoints (no authentication required):
 
 **POST** `/api/auth/login`
 
-Login with email and password. Returns JWT token for authenticated requests.
+Login with email and password.
+
+Behavior:
+
+- Sets JWT as HTTP-only `token` cookie
+- Returns authenticated user payload
 
 **Request Body:**
 
@@ -54,7 +59,6 @@ Login with email and password. Returns JWT token for authenticated requests.
 
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": 1,
     "name": "John Doe",
@@ -85,20 +89,18 @@ Initiates Google OAuth flow. Redirects to Google login page.
 
 **GET** `/api/auth/google/callback`
 
-Handles OAuth callback from Google. Creates/updates user and returns JWT token.
+Handles OAuth callback from Google.
 
-**Response:** `200 OK`
+Behavior:
 
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "name": "John Doe",
-    "email": "user@example.com"
-  }
-}
-```
+- Creates or links user account
+- Stores/refreshes Google OAuth tokens for Sheets usage
+- Sets JWT as HTTP-only `token` cookie
+- Redirects to frontend callback URL
+
+**Response:** `307 Temporary Redirect`
+
+**Redirect Target:** `{FRONTEND_URL}/auth/callback`
 
 ---
 
@@ -471,6 +473,138 @@ Retrieves all responses for a form. Requires authentication.
 Deletes a specific response. Requires authentication.
 
 **Response:** `204 No Content`
+
+---
+
+## Google Sheets Integration API
+
+### Link Google Sheet to Form
+
+**POST** `/api/forms/:id/sheets/link` 🔒
+
+Links an existing Google Sheet to a form. Requires authentication.
+
+**Request Body:**
+
+```json
+{
+  "spreadsheet_id": "YOUR_SPREADSHEET_ID"
+}
+```
+
+`google_sheet_auto_sync` is enabled when linking.
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": 1,
+  "name": "Customer Survey",
+  "google_sheet_id": "YOUR_SPREADSHEET_ID",
+  "google_sheet_name": "Sheet Name",
+  "google_sheet_linked_at": "2026-02-19T12:00:00Z",
+  "google_sheet_auto_sync": true,
+  ...
+}
+```
+
+**Error:** `400 Bad Request`
+
+```json
+{
+  "error": "Cannot access spreadsheet. Make sure it's shared with the service account."
+}
+```
+
+**Error:** `503 Service Unavailable`
+
+```json
+{
+  "error": "Google Sheets integration is not configured"
+}
+```
+
+---
+
+### Create and Link Google Sheet
+
+**POST** `/api/forms/:id/sheets/create` 🔒
+
+Creates a new Google Sheet and links it to the form. Form responses are exported with appropriate column headers. Requires authentication.
+
+**Request Body:**
+
+```json
+{
+  "title": "Optional Custom Title"
+}
+```
+
+If `title` is omitted, defaults to `"Form Name - Responses"`.
+
+**Response:** `201 Created`
+
+```json
+{
+  "form": {
+    "id": 1,
+    "name": "Customer Survey",
+    "google_sheet_id": "GENERATED_ID",
+    "google_sheet_name": "Customer Survey - Responses",
+    "google_sheet_auto_sync": true,
+    ...
+  },
+  "spreadsheet_id": "GENERATED_ID",
+  "spreadsheet_url": "https://docs.google.com/spreadsheets/d/GENERATED_ID"
+}
+```
+
+**Note:** The new spreadsheet will have "Form Responses" sheet with headers: "Submission ID", "Submitted At", followed by form field names.
+
+---
+
+### Unlink Google Sheet
+
+**DELETE** `/api/forms/:id/sheets/link` 🔒
+
+Removes the Google Sheet link from a form. Requires authentication.
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": 1,
+  "name": "Customer Survey",
+  "google_sheet_id": null,
+  "google_sheet_name": null,
+  "google_sheet_auto_sync": false,
+  ...
+}
+```
+
+---
+
+### Sheets Auth Strategy
+
+When creating/syncing sheets data, the server chooses credentials in this order:
+
+1. Form owner's Google OAuth access token (+ refresh token if available)
+2. Service account key (`GOOGLE_SERVICE_ACCOUNT_KEY_PATH`) fallback
+
+If neither is available, Sheets operations return service unavailable.
+
+---
+
+### Auto-Sync Behavior
+
+When a form response is submitted and `google_sheet_auto_sync` is enabled:
+
+1. Response is saved to database (synchronously)
+2. Background task appends response to the linked Google Sheet (asynchronously)
+3. Response data is converted to spreadsheet row format matching form schema
+4. Any sync errors are logged but do not affect response creation
+
+**Note:** Auto-sync errors do not cause the response submission to fail. Check server logs for sync issues.
 
 ---
 

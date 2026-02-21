@@ -47,6 +47,11 @@ func (h *Handler) GoogleCallback(c *echo.Context) error {
 
 	if existingUser != nil {
 		u = existingUser
+		if gothUser.AccessToken != "" {
+			if err := h.userService.UpdateOAuthTokens(c.Request().Context(), u.ID, gothUser.AccessToken, gothUser.RefreshToken, gothUser.ExpiresAt); err != nil {
+				return shared.RespondError(c, http.StatusInternalServerError, "Failed to update OAuth tokens")
+			}
+		}
 	} else {
 		existingByEmail, err := h.userService.GetUserByEmail(c.Request().Context(), gothUser.Email)
 		if err != nil && !errors.Is(err, user.ErrUserNotFound) {
@@ -60,14 +65,22 @@ func (h *Handler) GoogleCallback(c *echo.Context) error {
 			if err := h.userService.UpdateUser(c.Request().Context(), existingByEmail); err != nil {
 				return shared.RespondError(c, http.StatusInternalServerError, "Failed to link OAuth account")
 			}
+			if gothUser.AccessToken != "" {
+				if err := h.userService.UpdateOAuthTokens(c.Request().Context(), existingByEmail.ID, gothUser.AccessToken, gothUser.RefreshToken, gothUser.ExpiresAt); err != nil {
+					return shared.RespondError(c, http.StatusInternalServerError, "Failed to update OAuth tokens")
+				}
+			}
 			u = existingByEmail
 		} else {
 			u = &user.User{
-				Name:          gothUser.Name,
-				Email:         gothUser.Email,
-				OAuthProvider: &provider,
-				OAuthID:       &gothUser.UserID,
-				IsOAuth:       true,
+				Name:               gothUser.Name,
+				Email:              gothUser.Email,
+				OAuthProvider:      &provider,
+				OAuthID:            &gothUser.UserID,
+				IsOAuth:            true,
+				GoogleAccessToken:  &gothUser.AccessToken,
+				GoogleRefreshToken: &gothUser.RefreshToken,
+				GoogleTokenExpiry:  &gothUser.ExpiresAt,
 			}
 			if err := h.userService.CreateOAuthUser(c.Request().Context(), u); err != nil {
 				return shared.RespondError(c, http.StatusInternalServerError, "Failed to create user")

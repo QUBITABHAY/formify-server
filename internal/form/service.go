@@ -12,6 +12,10 @@ type Service struct {
 	responseRepo response.Repository
 }
 
+type FormGetterAdapter struct {
+	service *Service
+}
+
 func NewService(formRepo Repository, responseRepo response.Repository) *Service {
 	return &Service{formRepo: formRepo, responseRepo: responseRepo}
 }
@@ -93,4 +97,28 @@ func (s *Service) IsPublished(ctx context.Context, formID int32) (bool, error) {
 		return false, err
 	}
 	return form.Status == StatusPublished, nil
+}
+
+func (s *Service) LinkGoogleSheet(ctx context.Context, id int32, sheetID, sheetName string, autoSync bool) (*Form, error) {
+	return s.formRepo.LinkGoogleSheet(ctx, id, sheetID, sheetName, autoSync)
+}
+
+func (s *Service) UnlinkGoogleSheet(ctx context.Context, id int32) (*Form, error) {
+	return s.formRepo.UnlinkGoogleSheet(ctx, id)
+}
+
+func (s *Service) GetFormForSheets(ctx context.Context, id int32) (schema []byte, sheetID *string, autoSync bool, userID int32, err error) {
+	form, err := s.formRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, nil, false, 0, err
+	}
+	return form.Schema, form.GoogleSheetID, form.GoogleSheetAutoSync, form.UserID, nil
+}
+
+func NewFormGetterAdapter(service *Service) *FormGetterAdapter {
+	return &FormGetterAdapter{service: service}
+}
+
+func (a *FormGetterAdapter) GetFormByID(ctx context.Context, id int32) (schema []byte, sheetID *string, autoSync bool, userID int32, err error) {
+	return a.service.GetFormForSheets(ctx, id)
 }

@@ -13,18 +13,21 @@ import (
 
 const createOAuthUser = `-- name: CreateOAuthUser :one
 INSERT INTO users (
-    name, email, password, oauth_provider, oauth_id, is_oauth
+    name, email, password, oauth_provider, oauth_id, is_oauth, google_access_token, google_refresh_token, google_token_expiry
 ) VALUES (
-    $1, $2, '', $3, $4, true
+    $1, $2, '', $3, $4, true, $5, $6, $7
 )
-RETURNING id, name, email, password, oauth_provider, oauth_id, is_oauth, created_at, updated_at
+RETURNING id, name, email, password, oauth_provider, oauth_id, is_oauth, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at
 `
 
 type CreateOAuthUserParams struct {
-	Name          string      `json:"name"`
-	Email         string      `json:"email"`
-	OauthProvider pgtype.Text `json:"oauth_provider"`
-	OauthID       pgtype.Text `json:"oauth_id"`
+	Name               string             `json:"name"`
+	Email              string             `json:"email"`
+	OauthProvider      pgtype.Text        `json:"oauth_provider"`
+	OauthID            pgtype.Text        `json:"oauth_id"`
+	GoogleAccessToken  pgtype.Text        `json:"google_access_token"`
+	GoogleRefreshToken pgtype.Text        `json:"google_refresh_token"`
+	GoogleTokenExpiry  pgtype.Timestamptz `json:"google_token_expiry"`
 }
 
 func (q *Queries) CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams) (User, error) {
@@ -33,6 +36,9 @@ func (q *Queries) CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams
 		arg.Email,
 		arg.OauthProvider,
 		arg.OauthID,
+		arg.GoogleAccessToken,
+		arg.GoogleRefreshToken,
+		arg.GoogleTokenExpiry,
 	)
 	var i User
 	err := row.Scan(
@@ -43,6 +49,9 @@ func (q *Queries) CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams
 		&i.OauthProvider,
 		&i.OauthID,
 		&i.IsOauth,
+		&i.GoogleAccessToken,
+		&i.GoogleRefreshToken,
+		&i.GoogleTokenExpiry,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -55,7 +64,7 @@ INSERT INTO users (
 ) VALUES (
     $1, $2, $3
 )
-RETURNING id, name, email, password, oauth_provider, oauth_id, is_oauth, created_at, updated_at
+RETURNING id, name, email, password, oauth_provider, oauth_id, is_oauth, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -75,6 +84,9 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.OauthProvider,
 		&i.OauthID,
 		&i.IsOauth,
+		&i.GoogleAccessToken,
+		&i.GoogleRefreshToken,
+		&i.GoogleTokenExpiry,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -92,7 +104,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, password, oauth_provider, oauth_id, is_oauth, created_at, updated_at FROM users
+SELECT id, name, email, password, oauth_provider, oauth_id, is_oauth, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at FROM users
 WHERE email = $1
 `
 
@@ -107,6 +119,9 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.OauthProvider,
 		&i.OauthID,
 		&i.IsOauth,
+		&i.GoogleAccessToken,
+		&i.GoogleRefreshToken,
+		&i.GoogleTokenExpiry,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -114,7 +129,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, password, oauth_provider, oauth_id, is_oauth, created_at, updated_at FROM users
+SELECT id, name, email, password, oauth_provider, oauth_id, is_oauth, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at FROM users
 WHERE id = $1
 `
 
@@ -129,6 +144,9 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.OauthProvider,
 		&i.OauthID,
 		&i.IsOauth,
+		&i.GoogleAccessToken,
+		&i.GoogleRefreshToken,
+		&i.GoogleTokenExpiry,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -136,7 +154,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 }
 
 const getUserByOAuthID = `-- name: GetUserByOAuthID :one
-SELECT id, name, email, password, oauth_provider, oauth_id, is_oauth, created_at, updated_at FROM users
+SELECT id, name, email, password, oauth_provider, oauth_id, is_oauth, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at FROM users
 WHERE oauth_provider = $1 AND oauth_id = $2
 `
 
@@ -156,6 +174,9 @@ func (q *Queries) GetUserByOAuthID(ctx context.Context, arg GetUserByOAuthIDPara
 		&i.OauthProvider,
 		&i.OauthID,
 		&i.IsOauth,
+		&i.GoogleAccessToken,
+		&i.GoogleRefreshToken,
+		&i.GoogleTokenExpiry,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -163,7 +184,7 @@ func (q *Queries) GetUserByOAuthID(ctx context.Context, arg GetUserByOAuthIDPara
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, name, email, password, oauth_provider, oauth_id, is_oauth, created_at, updated_at FROM users
+SELECT id, name, email, password, oauth_provider, oauth_id, is_oauth, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at FROM users
 ORDER BY created_at DESC
 `
 
@@ -184,6 +205,9 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.OauthProvider,
 			&i.OauthID,
 			&i.IsOauth,
+			&i.GoogleAccessToken,
+			&i.GoogleRefreshToken,
+			&i.GoogleTokenExpiry,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -204,7 +228,7 @@ SET
     email = COALESCE($3, email),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, name, email, password, oauth_provider, oauth_id, is_oauth, created_at, updated_at
+RETURNING id, name, email, password, oauth_provider, oauth_id, is_oauth, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at
 `
 
 type UpdateUserParams struct {
@@ -224,6 +248,52 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.OauthProvider,
 		&i.OauthID,
 		&i.IsOauth,
+		&i.GoogleAccessToken,
+		&i.GoogleRefreshToken,
+		&i.GoogleTokenExpiry,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserOAuthTokens = `-- name: UpdateUserOAuthTokens :one
+UPDATE users
+SET 
+    google_access_token = $2,
+    google_refresh_token = COALESCE($3, google_refresh_token),
+    google_token_expiry = $4,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, name, email, password, oauth_provider, oauth_id, is_oauth, google_access_token, google_refresh_token, google_token_expiry, created_at, updated_at
+`
+
+type UpdateUserOAuthTokensParams struct {
+	ID                 int32              `json:"id"`
+	GoogleAccessToken  pgtype.Text        `json:"google_access_token"`
+	GoogleRefreshToken pgtype.Text        `json:"google_refresh_token"`
+	GoogleTokenExpiry  pgtype.Timestamptz `json:"google_token_expiry"`
+}
+
+func (q *Queries) UpdateUserOAuthTokens(ctx context.Context, arg UpdateUserOAuthTokensParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserOAuthTokens,
+		arg.ID,
+		arg.GoogleAccessToken,
+		arg.GoogleRefreshToken,
+		arg.GoogleTokenExpiry,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.OauthProvider,
+		&i.OauthID,
+		&i.IsOauth,
+		&i.GoogleAccessToken,
+		&i.GoogleRefreshToken,
+		&i.GoogleTokenExpiry,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

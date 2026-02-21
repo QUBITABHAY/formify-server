@@ -125,6 +125,31 @@ func (r *repository) Delete(ctx context.Context, id int32) error {
 	return r.queries.DeleteForm(ctx, id)
 }
 
+func (r *repository) LinkGoogleSheet(ctx context.Context, id int32, sheetID, sheetName string, autoSync bool) (*Form, error) {
+	dbForm, err := r.queries.LinkGoogleSheet(ctx, db.LinkGoogleSheetParams{
+		ID:                  id,
+		GoogleSheetID:       shared.StringToPgtypeText(&sheetID),
+		GoogleSheetName:     shared.StringToPgtypeText(&sheetName),
+		GoogleSheetAutoSync: shared.BoolToPgtypeBool(autoSync),
+	})
+	if err != nil {
+		return nil, err
+	}
+	form := &Form{}
+	r.mapDBFormToModel(dbForm, form)
+	return form, nil
+}
+
+func (r *repository) UnlinkGoogleSheet(ctx context.Context, id int32) (*Form, error) {
+	dbForm, err := r.queries.UnlinkGoogleSheet(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	form := &Form{}
+	r.mapDBFormToModel(dbForm, form)
+	return form, nil
+}
+
 func (r *repository) mapDBFormToModel(dbForm db.Form, form *Form) {
 	form.ID = dbForm.ID
 	form.FormID = shared.PgtypeTextToString(dbForm.FormID)
@@ -137,6 +162,10 @@ func (r *repository) mapDBFormToModel(dbForm db.Form, form *Form) {
 	form.Schema = dbForm.Schema
 	form.Settings = dbForm.Settings
 	form.ShareURL = shared.PgtypeTextToString(dbForm.ShareUrl)
+	form.GoogleSheetID = shared.PgtypeTextToString(dbForm.GoogleSheetID)
+	form.GoogleSheetName = shared.PgtypeTextToString(dbForm.GoogleSheetName)
+	form.GoogleSheetLinkedAt = shared.PgtypeTimestamptzToTimePtr(dbForm.GoogleSheetLinkedAt)
+	form.GoogleSheetAutoSync = shared.PgtypeBoolToBool(dbForm.GoogleSheetAutoSync)
 	form.CreatedAt = shared.PgtypeTimestamptzToTime(dbForm.CreatedAt)
 	form.UpdatedAt = shared.PgtypeTimestamptzToTime(dbForm.UpdatedAt)
 }

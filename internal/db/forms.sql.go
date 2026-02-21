@@ -29,7 +29,7 @@ INSERT INTO forms (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
+RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at
 `
 
 type CreateFormParams struct {
@@ -65,6 +65,10 @@ func (q *Queries) CreateForm(ctx context.Context, arg CreateFormParams) (Form, e
 		&i.Schema,
 		&i.Settings,
 		&i.ShareUrl,
+		&i.GoogleSheetID,
+		&i.GoogleSheetName,
+		&i.GoogleSheetLinkedAt,
+		&i.GoogleSheetAutoSync,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -82,7 +86,7 @@ func (q *Queries) DeleteForm(ctx context.Context, id int32) error {
 }
 
 const getFormByID = `-- name: GetFormByID :one
-SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
+SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at FROM forms
 WHERE id = $1
 `
 
@@ -99,6 +103,10 @@ func (q *Queries) GetFormByID(ctx context.Context, id int32) (Form, error) {
 		&i.Schema,
 		&i.Settings,
 		&i.ShareUrl,
+		&i.GoogleSheetID,
+		&i.GoogleSheetName,
+		&i.GoogleSheetLinkedAt,
+		&i.GoogleSheetAutoSync,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -106,7 +114,7 @@ func (q *Queries) GetFormByID(ctx context.Context, id int32) (Form, error) {
 }
 
 const getFormByShareURL = `-- name: GetFormByShareURL :one
-SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
+SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at FROM forms
 WHERE share_url = $1
 `
 
@@ -123,6 +131,93 @@ func (q *Queries) GetFormByShareURL(ctx context.Context, shareUrl pgtype.Text) (
 		&i.Schema,
 		&i.Settings,
 		&i.ShareUrl,
+		&i.GoogleSheetID,
+		&i.GoogleSheetName,
+		&i.GoogleSheetLinkedAt,
+		&i.GoogleSheetAutoSync,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getFormsWithLinkedSheets = `-- name: GetFormsWithLinkedSheets :many
+SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at FROM forms
+WHERE google_sheet_id IS NOT NULL
+`
+
+func (q *Queries) GetFormsWithLinkedSheets(ctx context.Context) ([]Form, error) {
+	rows, err := q.db.Query(ctx, getFormsWithLinkedSheets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Form
+	for rows.Next() {
+		var i Form
+		if err := rows.Scan(
+			&i.ID,
+			&i.FormID,
+			&i.Name,
+			&i.Description,
+			&i.UserID,
+			&i.Status,
+			&i.Schema,
+			&i.Settings,
+			&i.ShareUrl,
+			&i.GoogleSheetID,
+			&i.GoogleSheetName,
+			&i.GoogleSheetLinkedAt,
+			&i.GoogleSheetAutoSync,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const linkGoogleSheet = `-- name: LinkGoogleSheet :one
+UPDATE forms
+SET google_sheet_id = $2, google_sheet_name = $3, google_sheet_linked_at = NOW(), google_sheet_auto_sync = $4, updated_at = NOW()
+WHERE id = $1
+RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at
+`
+
+type LinkGoogleSheetParams struct {
+	ID                  int32       `json:"id"`
+	GoogleSheetID       pgtype.Text `json:"google_sheet_id"`
+	GoogleSheetName     pgtype.Text `json:"google_sheet_name"`
+	GoogleSheetAutoSync pgtype.Bool `json:"google_sheet_auto_sync"`
+}
+
+func (q *Queries) LinkGoogleSheet(ctx context.Context, arg LinkGoogleSheetParams) (Form, error) {
+	row := q.db.QueryRow(ctx, linkGoogleSheet,
+		arg.ID,
+		arg.GoogleSheetID,
+		arg.GoogleSheetName,
+		arg.GoogleSheetAutoSync,
+	)
+	var i Form
+	err := row.Scan(
+		&i.ID,
+		&i.FormID,
+		&i.Name,
+		&i.Description,
+		&i.UserID,
+		&i.Status,
+		&i.Schema,
+		&i.Settings,
+		&i.ShareUrl,
+		&i.GoogleSheetID,
+		&i.GoogleSheetName,
+		&i.GoogleSheetLinkedAt,
+		&i.GoogleSheetAutoSync,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -130,7 +225,7 @@ func (q *Queries) GetFormByShareURL(ctx context.Context, shareUrl pgtype.Text) (
 }
 
 const listFormsByUserID = `-- name: ListFormsByUserID :many
-SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
+SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at FROM forms
 WHERE user_id = $1
 ORDER BY created_at DESC
 `
@@ -154,6 +249,10 @@ func (q *Queries) ListFormsByUserID(ctx context.Context, userID int32) ([]Form, 
 			&i.Schema,
 			&i.Settings,
 			&i.ShareUrl,
+			&i.GoogleSheetID,
+			&i.GoogleSheetName,
+			&i.GoogleSheetLinkedAt,
+			&i.GoogleSheetAutoSync,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -168,7 +267,7 @@ func (q *Queries) ListFormsByUserID(ctx context.Context, userID int32) ([]Form, 
 }
 
 const listPublishedFormsByUserID = `-- name: ListPublishedFormsByUserID :many
-SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at FROM forms
+SELECT id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at FROM forms
 WHERE user_id = $1 AND status = 'published'
 ORDER BY created_at DESC
 `
@@ -192,6 +291,10 @@ func (q *Queries) ListPublishedFormsByUserID(ctx context.Context, userID int32) 
 			&i.Schema,
 			&i.Settings,
 			&i.ShareUrl,
+			&i.GoogleSheetID,
+			&i.GoogleSheetName,
+			&i.GoogleSheetLinkedAt,
+			&i.GoogleSheetAutoSync,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -205,6 +308,36 @@ func (q *Queries) ListPublishedFormsByUserID(ctx context.Context, userID int32) 
 	return items, nil
 }
 
+const unlinkGoogleSheet = `-- name: UnlinkGoogleSheet :one
+UPDATE forms
+SET google_sheet_id = NULL, google_sheet_name = NULL, google_sheet_linked_at = NULL, google_sheet_auto_sync = false, updated_at = NOW()
+WHERE id = $1
+RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at
+`
+
+func (q *Queries) UnlinkGoogleSheet(ctx context.Context, id int32) (Form, error) {
+	row := q.db.QueryRow(ctx, unlinkGoogleSheet, id)
+	var i Form
+	err := row.Scan(
+		&i.ID,
+		&i.FormID,
+		&i.Name,
+		&i.Description,
+		&i.UserID,
+		&i.Status,
+		&i.Schema,
+		&i.Settings,
+		&i.ShareUrl,
+		&i.GoogleSheetID,
+		&i.GoogleSheetName,
+		&i.GoogleSheetLinkedAt,
+		&i.GoogleSheetAutoSync,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateForm = `-- name: UpdateForm :one
 UPDATE forms
 SET 
@@ -214,7 +347,7 @@ SET
     settings = COALESCE($5, settings),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
+RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at
 `
 
 type UpdateFormParams struct {
@@ -244,6 +377,10 @@ func (q *Queries) UpdateForm(ctx context.Context, arg UpdateFormParams) (Form, e
 		&i.Schema,
 		&i.Settings,
 		&i.ShareUrl,
+		&i.GoogleSheetID,
+		&i.GoogleSheetName,
+		&i.GoogleSheetLinkedAt,
+		&i.GoogleSheetAutoSync,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -254,7 +391,7 @@ const updateFormShareURL = `-- name: UpdateFormShareURL :one
 UPDATE forms
 SET share_url = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
+RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at
 `
 
 type UpdateFormShareURLParams struct {
@@ -275,6 +412,10 @@ func (q *Queries) UpdateFormShareURL(ctx context.Context, arg UpdateFormShareURL
 		&i.Schema,
 		&i.Settings,
 		&i.ShareUrl,
+		&i.GoogleSheetID,
+		&i.GoogleSheetName,
+		&i.GoogleSheetLinkedAt,
+		&i.GoogleSheetAutoSync,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -285,7 +426,7 @@ const updateFormStatus = `-- name: UpdateFormStatus :one
 UPDATE forms
 SET status = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, created_at, updated_at
+RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at
 `
 
 type UpdateFormStatusParams struct {
@@ -306,6 +447,10 @@ func (q *Queries) UpdateFormStatus(ctx context.Context, arg UpdateFormStatusPara
 		&i.Schema,
 		&i.Settings,
 		&i.ShareUrl,
+		&i.GoogleSheetID,
+		&i.GoogleSheetName,
+		&i.GoogleSheetLinkedAt,
+		&i.GoogleSheetAutoSync,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
