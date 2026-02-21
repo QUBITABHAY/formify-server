@@ -39,7 +39,12 @@ Public endpoints (no authentication required):
 
 **POST** `/api/auth/login`
 
-Login with email and password. Returns JWT token for authenticated requests.
+Login with email and password.
+
+Behavior:
+
+- Sets JWT as HTTP-only `token` cookie
+- Returns authenticated user payload
 
 **Request Body:**
 
@@ -54,7 +59,6 @@ Login with email and password. Returns JWT token for authenticated requests.
 
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": 1,
     "name": "John Doe",
@@ -85,20 +89,18 @@ Initiates Google OAuth flow. Redirects to Google login page.
 
 **GET** `/api/auth/google/callback`
 
-Handles OAuth callback from Google. Creates/updates user and returns JWT token.
+Handles OAuth callback from Google.
 
-**Response:** `200 OK`
+Behavior:
 
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "name": "John Doe",
-    "email": "user@example.com"
-  }
-}
-```
+- Creates or links user account
+- Stores/refreshes Google OAuth tokens for Sheets usage
+- Sets JWT as HTTP-only `token` cookie
+- Redirects to frontend callback URL
+
+**Response:** `307 Temporary Redirect`
+
+**Redirect Target:** `{FRONTEND_URL}/auth/callback`
 
 ---
 
@@ -474,47 +476,23 @@ Deletes a specific response. Requires authentication.
 
 ---
 
-### Sync Response to Google Sheets
-
-**POST** `/api/responses/:id/sync` 🔒
-
-Manually syncs a single response to the linked Google Sheet. Requires authentication.
-
-**Response:** `200 OK`
-
-```json
-{
-  "message": "Response synced to Google Sheet",
-  "response_id": 42
-}
-```
-
-**Error:** `400 Bad Request`
-
-```json
-{
-  "error": "No Google Sheet linked to this form"
-}
-```
-
----
-
 ## Google Sheets Integration API
 
 ### Link Google Sheet to Form
 
 **POST** `/api/forms/:id/sheets/link` 🔒
 
-Links an existing Google Sheet to a form with optional auto-sync setting. Requires authentication.
+Links an existing Google Sheet to a form. Requires authentication.
 
 **Request Body:**
 
 ```json
 {
-  "spreadsheet_id": "YOUR_SPREADSHEET_ID",
-  "auto_sync": true
+  "spreadsheet_id": "YOUR_SPREADSHEET_ID"
 }
 ```
+
+`google_sheet_auto_sync` is enabled when linking.
 
 **Response:** `200 OK`
 
@@ -552,14 +530,13 @@ Links an existing Google Sheet to a form with optional auto-sync setting. Requir
 
 **POST** `/api/forms/:id/sheets/create` 🔒
 
-Creates a new Google Sheet and links it to the form with optional auto-sync. Form responses are exported with appropriate column headers. Requires authentication.
+Creates a new Google Sheet and links it to the form. Form responses are exported with appropriate column headers. Requires authentication.
 
 **Request Body:**
 
 ```json
 {
-  "title": "Optional Custom Title",
-  "auto_sync": true
+  "title": "Optional Custom Title"
 }
 ```
 
@@ -607,72 +584,14 @@ Removes the Google Sheet link from a form. Requires authentication.
 
 ---
 
-### Update Auto-Sync Setting
+### Sheets Auth Strategy
 
-**PUT** `/api/forms/:id/sheets/auto-sync` 🔒
+When creating/syncing sheets data, the server chooses credentials in this order:
 
-Updates the auto-sync setting for the linked Google Sheet. Requires authentication.
+1. Form owner's Google OAuth access token (+ refresh token if available)
+2. Service account key (`GOOGLE_SERVICE_ACCOUNT_KEY_PATH`) fallback
 
-**Request Body:**
-
-```json
-{
-  "auto_sync": false
-}
-```
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": 1,
-  "name": "Customer Survey",
-  "google_sheet_auto_sync": false,
-  ...
-}
-```
-
-**Error:** `400 Bad Request`
-
-```json
-{
-  "error": "No Google Sheet linked to this form"
-}
-```
-
----
-
-### Manually Sync All Form Responses
-
-**POST** `/api/forms/:id/sheets/sync` 🔒
-
-Manually syncs all responses for a form to the linked Google Sheet. Returns count of synced responses. Requires authentication.
-
-**Response:** `200 OK`
-
-```json
-{
-  "message": "Responses synced to Google Sheet",
-  "form_id": 1,
-  "synced_count": 42
-}
-```
-
-**Error:** `400 Bad Request`
-
-```json
-{
-  "error": "No Google Sheet linked to this form"
-}
-```
-
-**Error:** `503 Service Unavailable`
-
-```json
-{
-  "error": "Google Sheets integration is not configured"
-}
-```
+If neither is available, Sheets operations return service unavailable.
 
 ---
 

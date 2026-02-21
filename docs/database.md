@@ -26,6 +26,9 @@ Formify Server uses PostgreSQL with the following stack:
 | `oauth_provider` | `VARCHAR(50)`              |                           |
 | `oauth_id`       | `VARCHAR(100)`             |                           |
 | `is_oauth`       | `BOOLEAN`                  | DEFAULT FALSE             |
+| `google_access_token`  | `TEXT`               |                           |
+| `google_refresh_token` | `TEXT`               |                           |
+| `google_token_expiry`  | `TIMESTAMP WITH TIME ZONE` |                    |
 | `created_at`     | `TIMESTAMP WITH TIME ZONE` | DEFAULT CURRENT_TIMESTAMP |
 | `updated_at`     | `TIMESTAMP WITH TIME ZONE` | DEFAULT CURRENT_TIMESTAMP |
 
@@ -72,7 +75,17 @@ Formify Server uses PostgreSQL with the following stack:
 | `ListUsers`          | `:many` | List all users                    |
 | `UpdateUser`         | `:one`  | Update user name/email            |
 | `UpdateUserPassword` | `:exec` | Update user password              |
+| `UpdateUserOAuthTokens` | `:one` | Update stored Google OAuth tokens |
 | `DeleteUser`         | `:exec` | Delete user by ID                 |
+
+---
+
+## Migrations
+
+Recent migration for Sheets OAuth support:
+
+- `000003_add_oauth_tokens.up.sql` — adds `google_access_token`, `google_refresh_token`, `google_token_expiry`
+- `000003_add_oauth_tokens.down.sql` — removes those columns
 
 ### Forms
 

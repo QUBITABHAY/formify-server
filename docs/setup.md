@@ -54,7 +54,31 @@ cp .env.example .env
 | Variable       | Description                  | Default |
 | -------------- | ---------------------------- | ------- |
 | `DATABASE_URL` | PostgreSQL connection string | —       |
+| `JWT_SECRET`   | JWT signing secret           | —       |
 | `PORT`         | Server port                  | `1323`  |
+
+### Google/Auth Variables
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `SESSION_SECRET` | Session secret used by OAuth flow | `formify-session-secret` |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | — |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | — |
+| `GOOGLE_CALLBACK_URL` | OAuth callback URL | `http://localhost:1323/api/auth/google/callback` |
+| `FRONTEND_URL` | Frontend base URL used for OAuth callback redirect | `http://localhost:5173` |
+| `CORS_ORIGINS` | Comma-separated allowed origins | falls back to `FRONTEND_URL` |
+
+### Optional Google Sheets Service Account
+
+| Variable | Description |
+| --- | --- |
+| `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | Path to service account JSON key used as fallback for Sheets operations |
+
+Notes:
+
+- If a user logs in with Google, their OAuth token is used for Sheets operations.
+- If user token is unavailable, server falls back to service account (when configured).
+- If neither user token nor service account is available, Sheets operations are unavailable.
 
 ---
 
