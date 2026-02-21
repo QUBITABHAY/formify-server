@@ -38,8 +38,8 @@ type Querier interface {
 	UpdateForm(ctx context.Context, arg UpdateFormParams) (Form, error)
 	UpdateFormShareURL(ctx context.Context, arg UpdateFormShareURLParams) (Form, error)
 	UpdateFormStatus(ctx context.Context, arg UpdateFormStatusParams) (Form, error)
-	UpdateGoogleSheetAutoSync(ctx context.Context, arg UpdateGoogleSheetAutoSyncParams) (Form, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
+	UpdateUserOAuthTokens(ctx context.Context, arg UpdateUserOAuthTokensParams) (User, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 }
 

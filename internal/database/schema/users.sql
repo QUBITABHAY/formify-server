@@ -6,6 +6,9 @@ CREATE TABLE users (
     oauth_provider VARCHAR(50),
     oauth_id VARCHAR(100),
     is_oauth BOOLEAN DEFAULT FALSE,
+    google_access_token TEXT,
+    google_refresh_token TEXT,
+    google_token_expiry TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

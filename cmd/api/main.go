@@ -38,11 +38,11 @@ func main() {
 	userService := user.NewService(userRepo)
 	formService := form.NewService(formRepo, responseRepo)
 	formGetterAdapter := form.NewFormGetterAdapter(formService)
-	responseService := response.NewService(responseRepo, sheetsService, formGetterAdapter)
+	responseService := response.NewService(responseRepo, sheetsService, formGetterAdapter, userService)
 	authService := auth.NewService(userRepo, userService, cfg.JWTSecret)
 
 	userHandler := user.NewHandler(userService)
-	formHandler := form.NewHandler(formService, sheetsService)
+	formHandler := form.NewHandler(formService, sheetsService, userService)
 	responseHandler := response.NewHandler(responseService, formService)
 	authHandler := auth.NewHandler(authService, userService, cfg.FrontendURL, cfg.IsProduction())
 
@@ -99,12 +99,9 @@ func main() {
 	protected.POST("/forms/:id/sheets/link", formHandler.LinkGoogleSheet)
 	protected.POST("/forms/:id/sheets/create", formHandler.CreateAndLinkGoogleSheet)
 	protected.DELETE("/forms/:id/sheets/link", formHandler.UnlinkGoogleSheet)
-	protected.PUT("/forms/:id/sheets/auto-sync", formHandler.UpdateGoogleSheetAutoSync)
-	protected.POST("/forms/:id/sheets/sync", responseHandler.SyncAllResponsesToSheet)
 
 	protected.GET("/forms/:id/responses", responseHandler.GetFormResponses)
 	protected.GET("/responses/:id", responseHandler.GetResponse)
-	protected.POST("/responses/:id/sync", responseHandler.SyncResponseToSheet)
 	protected.DELETE("/responses/:id", responseHandler.DeleteResponse)
 
 	log.Printf("Server starting on port %s", cfg.Port)

@@ -6,15 +6,18 @@ import (
 )
 
 type User struct {
-	ID            int32     `json:"id"`
-	Name          string    `json:"name"`
-	Email         string    `json:"email"`
-	Password      string    `json:"-"`
-	OAuthProvider *string   `json:"oauth_provider,omitempty"`
-	OAuthID       *string   `json:"oauth_id,omitempty"`
-	IsOAuth       bool      `json:"is_oauth"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID                 int32      `json:"id"`
+	Name               string     `json:"name"`
+	Email              string     `json:"email"`
+	Password           string     `json:"-"`
+	OAuthProvider      *string    `json:"oauth_provider,omitempty"`
+	OAuthID            *string    `json:"oauth_id,omitempty"`
+	IsOAuth            bool       `json:"is_oauth"`
+	GoogleAccessToken  *string    `json:"-"`
+	GoogleRefreshToken *string    `json:"-"`
+	GoogleTokenExpiry  *time.Time `json:"-"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 type Repository interface {
@@ -25,4 +28,5 @@ type Repository interface {
 	GetByOAuthID(ctx context.Context, provider, oauthID string) (*User, error)
 	Update(ctx context.Context, user *User) error
 	UpdatePassword(ctx context.Context, id int32, password string) error
+	UpdateOAuthTokens(ctx context.Context, userID int32, accessToken, refreshToken string, expiry time.Time) error
 }

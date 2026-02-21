@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -51,4 +52,29 @@ func (s *Service) UpdatePassword(ctx context.Context, id int32, password string)
 		return err
 	}
 	return s.userRepo.UpdatePassword(ctx, id, string(hashedPassword))
+}
+
+func (s *Service) UpdateOAuthTokens(ctx context.Context, userID int32, accessToken, refreshToken string, expiry time.Time) error {
+	return s.userRepo.UpdateOAuthTokens(ctx, userID, accessToken, refreshToken, expiry)
+}
+
+func (s *Service) GetUserTokens(ctx context.Context, userID int32) (accessToken, refreshToken string, expiry time.Time, err error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+
+	if user.GoogleAccessToken == nil || *user.GoogleAccessToken == "" {
+		return "", "", time.Time{}, nil
+	}
+
+	accessToken = *user.GoogleAccessToken
+	if user.GoogleRefreshToken != nil {
+		refreshToken = *user.GoogleRefreshToken
+	}
+	if user.GoogleTokenExpiry != nil {
+		expiry = *user.GoogleTokenExpiry
+	}
+
+	return accessToken, refreshToken, expiry, nil
 }

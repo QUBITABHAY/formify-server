@@ -2,13 +2,7 @@ package response
 
 import (
 	"context"
-	"errors"
 	"time"
-)
-
-var (
-	ErrSheetsNotConfigured = errors.New("google sheets integration is not configured")
-	ErrNoSheetLinked       = errors.New("no google sheet is linked to this form")
 )
 
 type Response struct {

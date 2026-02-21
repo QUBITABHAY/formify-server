@@ -456,38 +456,3 @@ func (q *Queries) UpdateFormStatus(ctx context.Context, arg UpdateFormStatusPara
 	)
 	return i, err
 }
-
-const updateGoogleSheetAutoSync = `-- name: UpdateGoogleSheetAutoSync :one
-UPDATE forms
-SET google_sheet_auto_sync = $2, updated_at = NOW()
-WHERE id = $1
-RETURNING id, form_id, name, description, user_id, status, schema, settings, share_url, google_sheet_id, google_sheet_name, google_sheet_linked_at, google_sheet_auto_sync, created_at, updated_at
-`
-
-type UpdateGoogleSheetAutoSyncParams struct {
-	ID                  int32       `json:"id"`
-	GoogleSheetAutoSync pgtype.Bool `json:"google_sheet_auto_sync"`
-}
-
-func (q *Queries) UpdateGoogleSheetAutoSync(ctx context.Context, arg UpdateGoogleSheetAutoSyncParams) (Form, error) {
-	row := q.db.QueryRow(ctx, updateGoogleSheetAutoSync, arg.ID, arg.GoogleSheetAutoSync)
-	var i Form
-	err := row.Scan(
-		&i.ID,
-		&i.FormID,
-		&i.Name,
-		&i.Description,
-		&i.UserID,
-		&i.Status,
-		&i.Schema,
-		&i.Settings,
-		&i.ShareUrl,
-		&i.GoogleSheetID,
-		&i.GoogleSheetName,
-		&i.GoogleSheetLinkedAt,
-		&i.GoogleSheetAutoSync,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}

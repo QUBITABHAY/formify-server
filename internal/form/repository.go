@@ -150,19 +150,6 @@ func (r *repository) UnlinkGoogleSheet(ctx context.Context, id int32) (*Form, er
 	return form, nil
 }
 
-func (r *repository) UpdateGoogleSheetAutoSync(ctx context.Context, id int32, autoSync bool) (*Form, error) {
-	dbForm, err := r.queries.UpdateGoogleSheetAutoSync(ctx, db.UpdateGoogleSheetAutoSyncParams{
-		ID:                  id,
-		GoogleSheetAutoSync: shared.BoolToPgtypeBool(autoSync),
-	})
-	if err != nil {
-		return nil, err
-	}
-	form := &Form{}
-	r.mapDBFormToModel(dbForm, form)
-	return form, nil
-}
-
 func (r *repository) mapDBFormToModel(dbForm db.Form, form *Form) {
 	form.ID = dbForm.ID
 	form.FormID = shared.PgtypeTextToString(dbForm.FormID)

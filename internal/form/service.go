@@ -107,22 +107,18 @@ func (s *Service) UnlinkGoogleSheet(ctx context.Context, id int32) (*Form, error
 	return s.formRepo.UnlinkGoogleSheet(ctx, id)
 }
 
-func (s *Service) UpdateGoogleSheetAutoSync(ctx context.Context, id int32, autoSync bool) (*Form, error) {
-	return s.formRepo.UpdateGoogleSheetAutoSync(ctx, id, autoSync)
-}
-
-func (s *Service) GetFormForSheets(ctx context.Context, id int32) (schema []byte, sheetID *string, autoSync bool, err error) {
+func (s *Service) GetFormForSheets(ctx context.Context, id int32) (schema []byte, sheetID *string, autoSync bool, userID int32, err error) {
 	form, err := s.formRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, false, 0, err
 	}
-	return form.Schema, form.GoogleSheetID, form.GoogleSheetAutoSync, nil
+	return form.Schema, form.GoogleSheetID, form.GoogleSheetAutoSync, form.UserID, nil
 }
 
 func NewFormGetterAdapter(service *Service) *FormGetterAdapter {
 	return &FormGetterAdapter{service: service}
 }
 
-func (a *FormGetterAdapter) GetFormByID(ctx context.Context, id int32) (schema []byte, sheetID *string, autoSync bool, err error) {
+func (a *FormGetterAdapter) GetFormByID(ctx context.Context, id int32) (schema []byte, sheetID *string, autoSync bool, userID int32, err error) {
 	return a.service.GetFormForSheets(ctx, id)
 }

@@ -8,9 +8,9 @@ RETURNING *;
 
 -- name: CreateOAuthUser :one
 INSERT INTO users (
-    name, email, password, oauth_provider, oauth_id, is_oauth
+    name, email, password, oauth_provider, oauth_id, is_oauth, google_access_token, google_refresh_token, google_token_expiry
 ) VALUES (
-    $1, $2, '', $3, $4, true
+    $1, $2, '', $3, $4, true, $5, $6, $7
 )
 RETURNING *;
 
@@ -43,6 +43,16 @@ RETURNING *;
 UPDATE users
 SET password = $2, updated_at = NOW()
 WHERE id = $1;
+
+-- name: UpdateUserOAuthTokens :one
+UPDATE users
+SET 
+    google_access_token = $2,
+    google_refresh_token = COALESCE($3, google_refresh_token),
+    google_token_expiry = $4,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING *;
 
 -- name: DeleteUser :exec
 DELETE FROM users

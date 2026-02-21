@@ -42,5 +42,4 @@ type Repository interface {
 	Delete(ctx context.Context, id int32) error
 	LinkGoogleSheet(ctx context.Context, id int32, sheetID, sheetName string, autoSync bool) (*Form, error)
 	UnlinkGoogleSheet(ctx context.Context, id int32) (*Form, error)
-	UpdateGoogleSheetAutoSync(ctx context.Context, id int32, autoSync bool) (*Form, error)
 }

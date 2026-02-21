@@ -67,12 +67,6 @@ SET google_sheet_id = NULL, google_sheet_name = NULL, google_sheet_linked_at = N
 WHERE id = $1
 RETURNING *;
 
--- name: UpdateGoogleSheetAutoSync :one
-UPDATE forms
-SET google_sheet_auto_sync = $2, updated_at = NOW()
-WHERE id = $1
-RETURNING *;
-
 -- name: GetFormsWithLinkedSheets :many
 SELECT * FROM forms
 WHERE google_sheet_id IS NOT NULL;

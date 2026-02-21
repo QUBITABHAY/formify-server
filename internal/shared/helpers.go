@@ -48,6 +48,13 @@ func BoolToPgtypeBool(b bool) pgtype.Bool {
 	return pgtype.Bool{Bool: b, Valid: true}
 }
 
+func TimeToPgtypeTimestamptz(t *time.Time) pgtype.Timestamptz {
+	if t == nil {
+		return pgtype.Timestamptz{Valid: false}
+	}
+	return pgtype.Timestamptz{Time: *t, Valid: true}
+}
+
 func GetAuthUserID(c *echo.Context) (int32, bool) {
 	userID, ok := c.Get("user_id").(float64)
 	if !ok {

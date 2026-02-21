@@ -14,15 +14,18 @@ func InitProviders(googleClientID, googleClientSecret, googleCallbackURL, sessio
 	store.Options.HttpOnly = true
 	gothic.Store = store
 
-	goth.UseProviders(
-		google.New(
-			googleClientID,
-			googleClientSecret,
-			googleCallbackURL,
-			"email",
-			"profile",
-			"https://www.googleapis.com/auth/spreadsheets",
-			"https://www.googleapis.com/auth/drive.file",
-		),
+	googleProvider := google.New(
+		googleClientID,
+		googleClientSecret,
+		googleCallbackURL,
+		"email",
+		"profile",
+		"https://www.googleapis.com/auth/spreadsheets",
+		"https://www.googleapis.com/auth/drive",
 	)
+	// Request offline access to get refresh token
+	googleProvider.SetAccessType("offline")
+	googleProvider.SetPrompt("consent")
+
+	goth.UseProviders(googleProvider)
 }

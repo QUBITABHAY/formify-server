@@ -80,13 +80,16 @@ type Response struct {
 }
 
 type User struct {
-	ID            int32              `json:"id"`
-	Name          string             `json:"name"`
-	Email         string             `json:"email"`
-	Password      string             `json:"password"`
-	OauthProvider pgtype.Text        `json:"oauth_provider"`
-	OauthID       pgtype.Text        `json:"oauth_id"`
-	IsOauth       pgtype.Bool        `json:"is_oauth"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	ID                 int32              `json:"id"`
+	Name               string             `json:"name"`
+	Email              string             `json:"email"`
+	Password           string             `json:"password"`
+	OauthProvider      pgtype.Text        `json:"oauth_provider"`
+	OauthID            pgtype.Text        `json:"oauth_id"`
+	IsOauth            pgtype.Bool        `json:"is_oauth"`
+	GoogleAccessToken  pgtype.Text        `json:"google_access_token"`
+	GoogleRefreshToken pgtype.Text        `json:"google_refresh_token"`
+	GoogleTokenExpiry  pgtype.Timestamptz `json:"google_token_expiry"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }

@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"errors"
+	"time"
 
 	"formify/server/internal/db"
 	"formify/server/internal/shared"
@@ -44,10 +45,13 @@ func (r *repository) CreateOAuth(ctx context.Context, user *User) error {
 	}
 
 	dbUser, err := r.queries.CreateOAuthUser(ctx, db.CreateOAuthUserParams{
-		Name:          user.Name,
-		Email:         user.Email,
-		OauthProvider: shared.StringToPgtypeText(&provider),
-		OauthID:       shared.StringToPgtypeText(&oauthID),
+		Name:               user.Name,
+		Email:              user.Email,
+		OauthProvider:      shared.StringToPgtypeText(&provider),
+		OauthID:            shared.StringToPgtypeText(&oauthID),
+		GoogleAccessToken:  shared.StringToPgtypeText(user.GoogleAccessToken),
+		GoogleRefreshToken: shared.StringToPgtypeText(user.GoogleRefreshToken),
+		GoogleTokenExpiry:  shared.TimeToPgtypeTimestamptz(user.GoogleTokenExpiry),
 	})
 	if err != nil {
 		return err
@@ -118,6 +122,16 @@ func (r *repository) UpdatePassword(ctx context.Context, id int32, password stri
 	})
 }
 
+func (r *repository) UpdateOAuthTokens(ctx context.Context, userID int32, accessToken, refreshToken string, expiry time.Time) error {
+	_, err := r.queries.UpdateUserOAuthTokens(ctx, db.UpdateUserOAuthTokensParams{
+		ID:                 userID,
+		GoogleAccessToken:  shared.StringToPgtypeText(&accessToken),
+		GoogleRefreshToken: shared.StringToPgtypeText(&refreshToken),
+		GoogleTokenExpiry:  shared.TimeToPgtypeTimestamptz(&expiry),
+	})
+	return err
+}
+
 func (r *repository) mapDBUserToModel(dbUser db.User, user *User) {
 	user.ID = dbUser.ID
 	user.Name = dbUser.Name
@@ -126,6 +140,9 @@ func (r *repository) mapDBUserToModel(dbUser db.User, user *User) {
 	user.OAuthProvider = shared.PgtypeTextToString(dbUser.OauthProvider)
 	user.OAuthID = shared.PgtypeTextToString(dbUser.OauthID)
 	user.IsOAuth = shared.PgtypeBoolToBool(dbUser.IsOauth)
+	user.GoogleAccessToken = shared.PgtypeTextToString(dbUser.GoogleAccessToken)
+	user.GoogleRefreshToken = shared.PgtypeTextToString(dbUser.GoogleRefreshToken)
+	user.GoogleTokenExpiry = shared.PgtypeTimestamptzToTimePtr(dbUser.GoogleTokenExpiry)
 	user.CreatedAt = shared.PgtypeTimestamptzToTime(dbUser.CreatedAt)
 	user.UpdatedAt = shared.PgtypeTimestamptzToTime(dbUser.UpdatedAt)
 }

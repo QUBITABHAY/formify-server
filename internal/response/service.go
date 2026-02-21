@@ -3,25 +3,32 @@ package response
 import (
 	"context"
 	"log"
+	"time"
 
 	"formify/server/internal/integrations/google"
 )
 
 type FormGetter interface {
-	GetFormByID(ctx context.Context, id int32) (schema []byte, sheetID *string, autoSync bool, err error)
+	GetFormByID(ctx context.Context, id int32) (schema []byte, sheetID *string, autoSync bool, userID int32, err error)
+}
+
+type UserTokenGetter interface {
+	GetUserTokens(ctx context.Context, userID int32) (accessToken, refreshToken string, expiry time.Time, err error)
 }
 
 type Service struct {
-	responseRepo  Repository
-	sheetsService *google.SheetsService
-	formGetter    FormGetter
+	responseRepo    Repository
+	sheetsService   *google.SheetsService
+	formGetter      FormGetter
+	userTokenGetter UserTokenGetter
 }
 
-func NewService(responseRepo Repository, sheetsService *google.SheetsService, formGetter FormGetter) *Service {
+func NewService(responseRepo Repository, sheetsService *google.SheetsService, formGetter FormGetter, userTokenGetter UserTokenGetter) *Service {
 	return &Service{
-		responseRepo:  responseRepo,
-		sheetsService: sheetsService,
-		formGetter:    formGetter,
+		responseRepo:    responseRepo,
+		sheetsService:   sheetsService,
+		formGetter:      formGetter,
+		userTokenGetter: userTokenGetter,
 	}
 }
 
@@ -30,15 +37,35 @@ func (s *Service) CreateResponse(ctx context.Context, response *Response) error 
 		return err
 	}
 
-	if s.sheetsService != nil && s.formGetter != nil {
+	if s.formGetter != nil {
 		go s.syncResponseToSheetIfEnabled(context.Background(), response)
 	}
 
 	return nil
 }
 
+func (s *Service) getSheetsServiceForUser(ctx context.Context, userID int32) *google.SheetsService {
+	if s.userTokenGetter == nil {
+		return s.sheetsService
+	}
+
+	accessToken, refreshToken, expiry, err := s.userTokenGetter.GetUserTokens(ctx, userID)
+	if err != nil || accessToken == "" {
+		log.Printf("Failed to get user tokens, falling back to service account: %v", err)
+		return s.sheetsService
+	}
+
+	userSheetsService, err := google.NewSheetsServiceWithUserToken(ctx, accessToken, refreshToken, expiry)
+	if err != nil {
+		log.Printf("Failed to create user sheets service, falling back to service account: %v", err)
+		return s.sheetsService
+	}
+
+	return userSheetsService
+}
+
 func (s *Service) syncResponseToSheetIfEnabled(ctx context.Context, response *Response) {
-	schema, sheetID, autoSync, err := s.formGetter.GetFormByID(ctx, response.FormID)
+	schema, sheetID, autoSync, userID, err := s.formGetter.GetFormByID(ctx, response.FormID)
 	if err != nil {
 		log.Printf("Failed to get form for sheets sync: %v", err)
 		return
@@ -52,10 +79,16 @@ func (s *Service) syncResponseToSheetIfEnabled(ctx context.Context, response *Re
 		return
 	}
 
-	s.syncResponseToSheet(ctx, response, schema, *sheetID)
+	sheetsService := s.getSheetsServiceForUser(ctx, userID)
+	if sheetsService == nil {
+		log.Printf("No sheets service available for sync")
+		return
+	}
+
+	s.syncResponseToSheet(ctx, response, schema, *sheetID, sheetsService)
 }
 
-func (s *Service) syncResponseToSheet(ctx context.Context, response *Response, schema []byte, sheetID string) {
+func (s *Service) syncResponseToSheet(ctx context.Context, response *Response, schema []byte, sheetID string, sheetsService *google.SheetsService) {
 	fields, err := google.ParseFormSchema(schema)
 	if err != nil {
 		log.Printf("Failed to parse form schema for sheets sync: %v", err)
@@ -64,7 +97,7 @@ func (s *Service) syncResponseToSheet(ctx context.Context, response *Response, s
 			log.Printf("Failed to convert response to row: %v", err)
 			return
 		}
-		if err := s.sheetsService.AppendRow(ctx, sheetID, row); err != nil {
+		if err := sheetsService.AppendRow(ctx, sheetID, row); err != nil {
 			log.Printf("Failed to append row to sheet: %v", err)
 		}
 		return
@@ -76,60 +109,9 @@ func (s *Service) syncResponseToSheet(ctx context.Context, response *Response, s
 		return
 	}
 
-	if err := s.sheetsService.AppendRow(ctx, sheetID, row); err != nil {
+	if err := sheetsService.AppendRow(ctx, sheetID, row); err != nil {
 		log.Printf("Failed to append row to sheet: %v", err)
 	}
-}
-
-func (s *Service) SyncResponseManually(ctx context.Context, responseID int32) error {
-	if s.sheetsService == nil {
-		return ErrSheetsNotConfigured
-	}
-
-	response, err := s.responseRepo.GetByID(ctx, responseID)
-	if err != nil {
-		return err
-	}
-
-	schema, sheetID, _, err := s.formGetter.GetFormByID(ctx, response.FormID)
-	if err != nil {
-		return err
-	}
-
-	if sheetID == nil || *sheetID == "" {
-		return ErrNoSheetLinked
-	}
-
-	s.syncResponseToSheet(ctx, response, schema, *sheetID)
-	return nil
-}
-
-func (s *Service) SyncAllResponses(ctx context.Context, formID int32) (int, error) {
-	if s.sheetsService == nil {
-		return 0, ErrSheetsNotConfigured
-	}
-
-	schema, sheetID, _, err := s.formGetter.GetFormByID(ctx, formID)
-	if err != nil {
-		return 0, err
-	}
-
-	if sheetID == nil || *sheetID == "" {
-		return 0, ErrNoSheetLinked
-	}
-
-	responses, err := s.responseRepo.GetByFormID(ctx, formID)
-	if err != nil {
-		return 0, err
-	}
-
-	syncedCount := 0
-	for _, response := range responses {
-		s.syncResponseToSheet(ctx, response, schema, *sheetID)
-		syncedCount++
-	}
-
-	return syncedCount, nil
 }
 
 func (s *Service) GetResponseByID(ctx context.Context, id int32) (*Response, error) {

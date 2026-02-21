@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
+	"golang.org/x/oauth2"
+	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
@@ -33,9 +36,34 @@ func NewSheetsService(ctx context.Context, credentialsPath string) (*SheetsServi
 		return nil, fmt.Errorf("google service account key path is required")
 	}
 
-	srv, err := sheets.NewService(ctx, option.WithCredentialsFile(credentialsPath))
+	srv, err := sheets.NewService(ctx,
+		option.WithCredentialsFile(credentialsPath),
+		option.WithScopes(
+			sheets.SpreadsheetsScope,
+			drive.DriveScope,
+		),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sheets service: %w", err)
+	}
+
+	return &SheetsService{service: srv}, nil
+}
+
+func NewSheetsServiceWithUserToken(ctx context.Context, accessToken, refreshToken string, expiry time.Time) (*SheetsService, error) {
+	token := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       expiry,
+	}
+
+	tokenSource := oauth2.StaticTokenSource(token)
+
+	srv, err := sheets.NewService(ctx,
+		option.WithTokenSource(tokenSource),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create sheets service with user token: %w", err)
 	}
 
 	return &SheetsService{service: srv}, nil
