@@ -95,5 +95,5 @@ func (h *Handler) GoogleCallback(c *echo.Context) error {
 
 	h.setTokenCookie(c, token)
 
-	return c.Redirect(http.StatusTemporaryRedirect, h.frontendURL+"/dashboard")
+	return c.Redirect(http.StatusTemporaryRedirect, h.frontendURL+"/auth/callback")
 }

@@ -43,14 +43,44 @@ type UserData struct {
 	Email string `json:"email"`
 }
 
+func (h *Handler) getCookieDomain() string {
+	frontendURL := h.frontendURL
+	for _, prefix := range []string{"https://", "http://"} {
+		if len(frontendURL) > len(prefix) && frontendURL[:len(prefix)] == prefix {
+			frontendURL = frontendURL[len(prefix):]
+			break
+		}
+	}
+
+	for i, ch := range frontendURL {
+		if ch == ':' || ch == '/' {
+			frontendURL = frontendURL[:i]
+			break
+		}
+	}
+
+	if frontendURL == "localhost" || frontendURL == "127.0.0.1" {
+		return ""
+	}
+	return "." + frontendURL
+}
+
+func (h *Handler) getSameSite() http.SameSite {
+	if h.cookieSecure {
+		return http.SameSiteNoneMode
+	}
+	return http.SameSiteLaxMode
+}
+
 func (h *Handler) setTokenCookie(c *echo.Context, token string) {
 	cookie := &http.Cookie{
 		Name:     CookieName,
 		Value:    token,
 		Path:     "/",
+		Domain:   h.getCookieDomain(),
 		HttpOnly: true,
 		Secure:   h.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: h.getSameSite(),
 		MaxAge:   int(24 * time.Hour / time.Second),
 	}
 	c.SetCookie(cookie)
@@ -61,9 +91,10 @@ func (h *Handler) clearTokenCookie(c *echo.Context) {
 		Name:     CookieName,
 		Value:    "",
 		Path:     "/",
+		Domain:   h.getCookieDomain(),
 		HttpOnly: true,
 		Secure:   h.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: h.getSameSite(),
 		MaxAge:   -1,
 	}
 	c.SetCookie(cookie)
