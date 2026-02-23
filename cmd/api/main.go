@@ -33,7 +33,7 @@ func main() {
 	formRepo := form.NewRepository(queries)
 	responseRepo := response.NewRepository(queries)
 
-	sheetsService := google.InitSheetsService(cfg.GoogleServiceAccountKeyPath)
+	sheetsService := google.InitSheetsService(cfg.GoogleServiceAccountKeyPath, cfg.GoogleServiceAccountKey)
 
 	userService := user.NewService(userRepo)
 	formService := form.NewService(formRepo, responseRepo)

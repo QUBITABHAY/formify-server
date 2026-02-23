@@ -16,12 +16,12 @@ type SheetsService struct {
 	service *sheets.Service
 }
 
-func InitSheetsService(credentialsPath string) *SheetsService {
-	if credentialsPath == "" {
+func InitSheetsService(credentialsPath, credentialsJSON string) *SheetsService {
+	if credentialsPath == "" && credentialsJSON == "" {
 		return nil
 	}
 
-	sheetsService, err := NewSheetsService(context.Background(), credentialsPath)
+	sheetsService, err := NewSheetsService(context.Background(), credentialsPath, credentialsJSON)
 	if err != nil {
 		log.Printf("Warning: Google Sheets integration not available: %v", err)
 		return nil
@@ -31,13 +31,20 @@ func InitSheetsService(credentialsPath string) *SheetsService {
 	return sheetsService
 }
 
-func NewSheetsService(ctx context.Context, credentialsPath string) (*SheetsService, error) {
-	if credentialsPath == "" {
-		return nil, fmt.Errorf("google service account key path is required")
+func NewSheetsService(ctx context.Context, credentialsPath, credentialsJSON string) (*SheetsService, error) {
+	var opt option.ClientOption
+
+	switch {
+	case credentialsJSON != "":
+		opt = option.WithCredentialsJSON([]byte(credentialsJSON))
+	case credentialsPath != "":
+		opt = option.WithCredentialsFile(credentialsPath)
+	default:
+		return nil, fmt.Errorf("google service account credentials are required")
 	}
 
 	srv, err := sheets.NewService(ctx,
-		option.WithCredentialsFile(credentialsPath),
+		opt,
 		option.WithScopes(
 			sheets.SpreadsheetsScope,
 			drive.DriveScope,

@@ -42,3 +42,6 @@ bin/
 
 # Service account key file
 formify-service.json
+
+# Azure deployment (contains secrets)
+deploy.yaml

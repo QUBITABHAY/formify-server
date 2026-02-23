@@ -8,17 +8,18 @@ import (
 )
 
 type Config struct {
-	Port                          string `mapstructure:"PORT"`
-	Env                           string `mapstructure:"ENV"`
-	DatabaseURL                   string `mapstructure:"DATABASE_URL"`
-	JWTSecret                     string `mapstructure:"JWT_SECRET"`
-	SessionSecret                 string `mapstructure:"SESSION_SECRET"`
-	GoogleClientID                string `mapstructure:"GOOGLE_CLIENT_ID"`
-	GoogleClientSecret            string `mapstructure:"GOOGLE_CLIENT_SECRET"`
-	GoogleCallbackURL             string `mapstructure:"GOOGLE_CALLBACK_URL"`
-	GoogleServiceAccountKeyPath   string `mapstructure:"GOOGLE_SERVICE_ACCOUNT_KEY_PATH"`
-	FrontendURL                   string `mapstructure:"FRONTEND_URL"`
-	CORSOrigins                   string `mapstructure:"CORS_ORIGINS"`
+	Port                        string `mapstructure:"PORT"`
+	Env                         string `mapstructure:"ENV"`
+	DatabaseURL                 string `mapstructure:"DATABASE_URL"`
+	JWTSecret                   string `mapstructure:"JWT_SECRET"`
+	SessionSecret               string `mapstructure:"SESSION_SECRET"`
+	GoogleClientID              string `mapstructure:"GOOGLE_CLIENT_ID"`
+	GoogleClientSecret          string `mapstructure:"GOOGLE_CLIENT_SECRET"`
+	GoogleCallbackURL           string `mapstructure:"GOOGLE_CALLBACK_URL"`
+	GoogleServiceAccountKeyPath string `mapstructure:"GOOGLE_SERVICE_ACCOUNT_KEY_PATH"`
+	GoogleServiceAccountKey     string `mapstructure:"GOOGLE_SERVICE_ACCOUNT_KEY"`
+	FrontendURL                 string `mapstructure:"FRONTEND_URL"`
+	CORSOrigins                 string `mapstructure:"CORS_ORIGINS"`
 }
 
 func (c *Config) IsProduction() bool {
@@ -49,7 +50,8 @@ func Load() *Config {
 	for _, key := range []string{
 		"PORT", "ENV", "DATABASE_URL", "JWT_SECRET", "SESSION_SECRET",
 		"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_CALLBACK_URL",
-		"GOOGLE_SERVICE_ACCOUNT_KEY_PATH", "FRONTEND_URL", "CORS_ORIGINS",
+		"GOOGLE_SERVICE_ACCOUNT_KEY_PATH", "GOOGLE_SERVICE_ACCOUNT_KEY",
+		"FRONTEND_URL", "CORS_ORIGINS",
 	} {
 		_ = viper.BindEnv(key, strings.ToUpper(key))
 	}
