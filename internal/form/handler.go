@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"formify/server/internal/integrations/google"
+	responsepkg "formify/server/internal/response"
 	"formify/server/internal/shared"
 	"formify/server/internal/user"
 
@@ -20,10 +21,11 @@ type Handler struct {
 	service       *Service
 	sheetsService *google.SheetsService
 	userService   *user.Service
+	responseSvc   *responsepkg.Service
 }
 
-func NewHandler(service *Service, sheetsService *google.SheetsService, userService *user.Service) *Handler {
-	return &Handler{service: service, sheetsService: sheetsService, userService: userService}
+func NewHandler(service *Service, sheetsService *google.SheetsService, userService *user.Service, responseSvc *responsepkg.Service) *Handler {
+	return &Handler{service: service, sheetsService: sheetsService, userService: userService, responseSvc: responseSvc}
 }
 
 type CreateFormRequest struct {
@@ -56,10 +58,6 @@ type FormResponse struct {
 	GoogleSheetAutoSync bool            `json:"google_sheet_auto_sync"`
 	CreatedAt           time.Time       `json:"created_at"`
 	UpdatedAt           time.Time       `json:"updated_at"`
-}
-
-type LinkGoogleSheetRequest struct {
-	SpreadsheetID string `json:"spreadsheet_id"`
 }
 
 type CreateGoogleSheetRequest struct {
@@ -311,55 +309,6 @@ func (h *Handler) DeleteForm(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (h *Handler) LinkGoogleSheet(c *echo.Context) error {
-	if h.sheetsService == nil {
-		return shared.RespondError(c, http.StatusServiceUnavailable, "Google Sheets integration is not configured")
-	}
-
-	authUserID, ok := shared.GetAuthUserID(c)
-	if !ok {
-		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
-	}
-
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
-	if err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
-	}
-
-	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
-	if err != nil {
-		return shared.RespondError(c, http.StatusNotFound, "Form not found")
-	}
-	if existingForm.UserID != authUserID {
-		return shared.RespondError(c, http.StatusForbidden, "Access denied")
-	}
-
-	var req LinkGoogleSheetRequest
-	if err := c.Bind(&req); err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
-	}
-
-	if req.SpreadsheetID == "" {
-		return shared.RespondError(c, http.StatusBadRequest, "Spreadsheet ID is required")
-	}
-
-	if err := h.sheetsService.ValidateSpreadsheet(c.Request().Context(), req.SpreadsheetID); err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Cannot access spreadsheet. Make sure it's shared with the service account.")
-	}
-
-	sheetName, err := h.sheetsService.GetSpreadsheetTitle(c.Request().Context(), req.SpreadsheetID)
-	if err != nil {
-		sheetName = "Linked Sheet"
-	}
-
-	form, err := h.service.LinkGoogleSheet(c.Request().Context(), int32(id), req.SpreadsheetID, sheetName, true)
-	if err != nil {
-		return shared.RespondError(c, http.StatusInternalServerError, "Failed to link Google Sheet")
-	}
-
-	return c.JSON(http.StatusOK, formToResponse(form))
-}
-
 func (h *Handler) CreateAndLinkGoogleSheet(c *echo.Context) error {
 	authUserID, ok := shared.GetAuthUserID(c)
 	if !ok {
@@ -397,41 +346,43 @@ func (h *Handler) CreateAndLinkGoogleSheet(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusInternalServerError, "Failed to get user")
 	}
 
-	var sheetsService *google.SheetsService
-
-	if currentUser.GoogleAccessToken != nil && *currentUser.GoogleAccessToken != "" {
-		expiry := time.Now()
-		if currentUser.GoogleTokenExpiry != nil {
-			expiry = *currentUser.GoogleTokenExpiry
-		}
-		refreshToken := ""
-		if currentUser.GoogleRefreshToken != nil {
-			refreshToken = *currentUser.GoogleRefreshToken
-		}
-		userSheetsService, err := google.NewSheetsServiceWithUserToken(
-			c.Request().Context(),
-			*currentUser.GoogleAccessToken,
-			refreshToken,
-			expiry,
-		)
-		if err != nil {
-			log.Printf("Failed to create user token sheets service, falling back to service account: %v", err)
-			sheetsService = h.sheetsService
-		} else {
-			sheetsService = userSheetsService
-			log.Printf("Using user's OAuth token for Google Sheets")
-		}
-	} else {
-		sheetsService = h.sheetsService
-		if sheetsService == nil {
-			return shared.RespondError(c, http.StatusServiceUnavailable, "Google Sheets integration is not configured. Please login with Google to enable Sheets integration.")
-		}
+	if currentUser.GoogleAccessToken == nil || *currentUser.GoogleAccessToken == "" {
+		return shared.RespondError(c, http.StatusUnauthorized, "Google OAuth is required to link a sheet. Please login with Google.")
 	}
+
+	expiry := time.Now()
+	if currentUser.GoogleTokenExpiry != nil {
+		expiry = *currentUser.GoogleTokenExpiry
+	}
+	refreshToken := ""
+	if currentUser.GoogleRefreshToken != nil {
+		refreshToken = *currentUser.GoogleRefreshToken
+	}
+
+	sheetsService, err := google.NewSheetsServiceWithUserToken(
+		c.Request().Context(),
+		*currentUser.GoogleAccessToken,
+		refreshToken,
+		expiry,
+	)
+	if err != nil {
+		log.Printf("Failed to create user token sheets service: %v", err)
+		return shared.RespondError(c, http.StatusUnauthorized, "Google OAuth is required to link a sheet. Please login with Google again.")
+	}
+
+	log.Printf("Using user's OAuth token for Google Sheets")
 
 	spreadsheetID, err := sheetsService.CreateSpreadsheet(c.Request().Context(), title, headers)
 	if err != nil {
 		log.Printf("Failed to create Google Sheet for form %d: %v", id, err)
 		return shared.RespondError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to create Google Sheet: %v", err))
+	}
+
+	if h.responseSvc != nil {
+		if err := h.responseSvc.BackfillFormResponsesToSheet(c.Request().Context(), int32(id), existingForm.Schema, spreadsheetID, existingForm.UserID); err != nil {
+			log.Printf("Failed to backfill responses for form %d to new sheet %s: %v", id, spreadsheetID, err)
+			return shared.RespondError(c, http.StatusInternalServerError, "Failed to sync existing responses to Google Sheet")
+		}
 	}
 
 	form, err := h.service.LinkGoogleSheet(c.Request().Context(), int32(id), spreadsheetID, title, true)

@@ -77,8 +77,7 @@ cp .env.example .env
 Notes:
 
 - If a user logs in with Google, their OAuth token is used for Sheets operations.
-- If user token is unavailable, server falls back to service account (when configured).
-- If neither user token nor service account is available, Sheets operations are unavailable.
+- If user token is unavailable or expired, users must log in with Google again to use Sheets operations.
 
 ---
 

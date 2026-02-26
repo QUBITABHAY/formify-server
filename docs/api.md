@@ -24,7 +24,6 @@ Authorization: Bearer <your-jwt-token>
 
 Public endpoints (no authentication required):
 
-- `POST /api/auth/login` - Email/password login
 - `POST /api/users` - Create user account
 - `GET /api/forms/share/:share_url` - Get published form by share URL
 - `POST /api/forms/:form_id/responses` - Submit form response
@@ -34,48 +33,6 @@ Public endpoints (no authentication required):
 ---
 
 ## Authentication API
-
-### Login
-
-**POST** `/api/auth/login`
-
-Login with email and password.
-
-Behavior:
-
-- Sets JWT as HTTP-only `token` cookie
-- Returns authenticated user payload
-
-**Request Body:**
-
-```json
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
-```
-
-**Response:** `200 OK`
-
-```json
-{
-  "user": {
-    "id": 1,
-    "name": "John Doe",
-    "email": "user@example.com"
-  }
-}
-```
-
-**Error:** `401 Unauthorized`
-
-```json
-{
-  "error": "Invalid email or password"
-}
-```
-
----
 
 ### Google OAuth Login
 
@@ -478,59 +435,11 @@ Deletes a specific response. Requires authentication.
 
 ## Google Sheets Integration API
 
-### Link Google Sheet to Form
-
-**POST** `/api/forms/:id/sheets/link` 🔒
-
-Links an existing Google Sheet to a form. Requires authentication.
-
-**Request Body:**
-
-```json
-{
-  "spreadsheet_id": "YOUR_SPREADSHEET_ID"
-}
-```
-
-`google_sheet_auto_sync` is enabled when linking.
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": 1,
-  "name": "Customer Survey",
-  "google_sheet_id": "YOUR_SPREADSHEET_ID",
-  "google_sheet_name": "Sheet Name",
-  "google_sheet_linked_at": "2026-02-19T12:00:00Z",
-  "google_sheet_auto_sync": true,
-  ...
-}
-```
-
-**Error:** `400 Bad Request`
-
-```json
-{
-  "error": "Cannot access spreadsheet. Make sure it's shared with the service account."
-}
-```
-
-**Error:** `503 Service Unavailable`
-
-```json
-{
-  "error": "Google Sheets integration is not configured"
-}
-```
-
----
-
 ### Create and Link Google Sheet
 
 **POST** `/api/forms/:id/sheets/create` 🔒
 
-Creates a new Google Sheet and links it to the form. Form responses are exported with appropriate column headers. Requires authentication.
+Creates a new Google Sheet and links it to the form using the authenticated user's Google OAuth token. Form responses are exported with appropriate column headers. Requires authentication.
 
 **Request Body:**
 
@@ -586,12 +495,9 @@ Removes the Google Sheet link from a form. Requires authentication.
 
 ### Sheets Auth Strategy
 
-When creating/syncing sheets data, the server chooses credentials in this order:
+Sheets operations require the form owner's Google OAuth access token.
 
-1. Form owner's Google OAuth access token (+ refresh token if available)
-2. Service account key (`GOOGLE_SERVICE_ACCOUNT_KEY_PATH`) fallback
-
-If neither is available, Sheets operations return service unavailable.
+If the user does not have a valid OAuth token, sheets operations fail and the user must log in with Google again.
 
 ---
 

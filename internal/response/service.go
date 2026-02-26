@@ -2,6 +2,7 @@ package response
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -46,19 +47,19 @@ func (s *Service) CreateResponse(ctx context.Context, response *Response) error 
 
 func (s *Service) getSheetsServiceForUser(ctx context.Context, userID int32) *google.SheetsService {
 	if s.userTokenGetter == nil {
-		return s.sheetsService
+		return nil
 	}
 
 	accessToken, refreshToken, expiry, err := s.userTokenGetter.GetUserTokens(ctx, userID)
 	if err != nil || accessToken == "" {
-		log.Printf("Failed to get user tokens, falling back to service account: %v", err)
-		return s.sheetsService
+		log.Printf("Failed to get user OAuth tokens: %v", err)
+		return nil
 	}
 
 	userSheetsService, err := google.NewSheetsServiceWithUserToken(ctx, accessToken, refreshToken, expiry)
 	if err != nil {
-		log.Printf("Failed to create user sheets service, falling back to service account: %v", err)
-		return s.sheetsService
+		log.Printf("Failed to create user sheets service: %v", err)
+		return nil
 	}
 
 	return userSheetsService
@@ -127,9 +128,98 @@ func (s *Service) GetFormResponsesPaginated(ctx context.Context, formID int32, l
 }
 
 func (s *Service) DeleteResponse(ctx context.Context, id int32) error {
-	return s.responseRepo.Delete(ctx, id)
+	response, err := s.responseRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if err := s.responseRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	if s.formGetter == nil {
+		return nil
+	}
+
+	go s.removeResponseFromSheetIfEnabled(context.Background(), response)
+
+	return nil
 }
 
 func (s *Service) DeleteFormResponses(ctx context.Context, formID int32) error {
 	return s.responseRepo.DeleteByFormID(ctx, formID)
+}
+
+func (s *Service) BackfillFormResponsesToSheet(ctx context.Context, formID int32, schema []byte, sheetID string, userID int32) error {
+	if sheetID == "" {
+		return nil
+	}
+
+	sheetsService := s.getSheetsServiceForUser(ctx, userID)
+	if sheetsService == nil {
+		return fmt.Errorf("no sheets service available")
+	}
+
+	responses, err := s.responseRepo.GetByFormID(ctx, formID)
+	if err != nil {
+		return fmt.Errorf("failed to load form responses: %w", err)
+	}
+
+	if len(responses) == 0 {
+		return nil
+	}
+
+	existingIDs, err := sheetsService.GetExistingSubmissionIDs(ctx, sheetID)
+	if err != nil {
+		return fmt.Errorf("failed to read existing sheet rows: %w", err)
+	}
+
+	fields, schemaErr := google.ParseFormSchema(schema)
+
+	for i := len(responses) - 1; i >= 0; i-- {
+		resp := responses[i]
+		if _, exists := existingIDs[resp.ID]; exists {
+			continue
+		}
+
+		var row []interface{}
+		if schemaErr == nil {
+			row, err = google.ResponseToRow(resp.ID, resp.CreatedAt, resp.Data, fields)
+		} else {
+			row, _, err = google.ResponseToRowWithoutSchema(resp.ID, resp.CreatedAt, resp.Data)
+		}
+		if err != nil {
+			log.Printf("Failed to convert response %d to row for backfill: %v", resp.ID, err)
+			continue
+		}
+
+		if err := sheetsService.AppendRow(ctx, sheetID, row); err != nil {
+			log.Printf("Failed to append response %d during backfill: %v", resp.ID, err)
+			continue
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) removeResponseFromSheetIfEnabled(ctx context.Context, response *Response) {
+	_, sheetID, autoSync, userID, err := s.formGetter.GetFormByID(ctx, response.FormID)
+	if err != nil {
+		log.Printf("Failed to get form for sheets delete sync: %v", err)
+		return
+	}
+
+	if sheetID == nil || *sheetID == "" || !autoSync {
+		return
+	}
+
+	sheetsService := s.getSheetsServiceForUser(ctx, userID)
+	if sheetsService == nil {
+		log.Printf("No sheets service available for delete sync")
+		return
+	}
+
+	if err := sheetsService.DeleteRowBySubmissionID(ctx, *sheetID, response.ID); err != nil {
+		log.Printf("Failed to remove response %d from sheet: %v", response.ID, err)
+	}
 }

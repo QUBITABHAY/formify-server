@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -148,5 +150,101 @@ func (s *SheetsService) ValidateSpreadsheet(ctx context.Context, spreadsheetID s
 	if err != nil {
 		return fmt.Errorf("cannot access spreadsheet: %w", err)
 	}
+	return nil
+}
+
+func (s *SheetsService) GetExistingSubmissionIDs(ctx context.Context, spreadsheetID string) (map[int32]struct{}, error) {
+	valueRange, err := s.service.Spreadsheets.Values.Get(spreadsheetID, "Form Responses!A:A").Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read submission IDs: %w", err)
+	}
+
+	ids := make(map[int32]struct{})
+	for i, row := range valueRange.Values {
+		rowNumber := i + 1
+		if rowNumber == 1 || len(row) == 0 {
+			continue
+		}
+
+		raw := strings.TrimSpace(fmt.Sprintf("%v", row[0]))
+		if raw == "" {
+			continue
+		}
+
+		id64, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil {
+			continue
+		}
+
+		ids[int32(id64)] = struct{}{}
+	}
+
+	return ids, nil
+}
+
+func (s *SheetsService) DeleteRowBySubmissionID(ctx context.Context, spreadsheetID string, submissionID int32) error {
+	valueRange, err := s.service.Spreadsheets.Values.Get(spreadsheetID, "Form Responses!A:A").Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("failed to read sheet rows: %w", err)
+	}
+
+	target := strconv.Itoa(int(submissionID))
+	targetRow := -1
+	for i, row := range valueRange.Values {
+		rowNumber := i + 1
+		if rowNumber == 1 || len(row) == 0 {
+			continue
+		}
+
+		if strings.TrimSpace(fmt.Sprintf("%v", row[0])) == target {
+			targetRow = rowNumber
+			break
+		}
+	}
+
+	if targetRow == -1 {
+		return nil
+	}
+
+	spreadsheet, err := s.service.Spreadsheets.Get(spreadsheetID).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("failed to load spreadsheet metadata: %w", err)
+	}
+
+	var sheetID int64
+	found := false
+	for _, sheet := range spreadsheet.Sheets {
+		if sheet.Properties != nil && sheet.Properties.Title == "Form Responses" {
+			sheetID = sheet.Properties.SheetId
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		if len(spreadsheet.Sheets) == 0 || spreadsheet.Sheets[0].Properties == nil {
+			return fmt.Errorf("spreadsheet has no available sheets")
+		}
+		sheetID = spreadsheet.Sheets[0].Properties.SheetId
+	}
+
+	_, err = s.service.Spreadsheets.BatchUpdate(spreadsheetID, &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: []*sheets.Request{
+			{
+				DeleteDimension: &sheets.DeleteDimensionRequest{
+					Range: &sheets.DimensionRange{
+						SheetId:    sheetID,
+						Dimension:  "ROWS",
+						StartIndex: int64(targetRow - 1),
+						EndIndex:   int64(targetRow),
+					},
+				},
+			},
+		},
+	}).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("failed to delete row for submission %d: %w", submissionID, err)
+	}
+
 	return nil
 }

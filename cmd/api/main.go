@@ -39,10 +39,10 @@ func main() {
 	formService := form.NewService(formRepo, responseRepo)
 	formGetterAdapter := form.NewFormGetterAdapter(formService)
 	responseService := response.NewService(responseRepo, sheetsService, formGetterAdapter, userService)
-	authService := auth.NewService(userRepo, userService, cfg.JWTSecret)
+	authService := auth.NewService(cfg.JWTSecret)
 
 	userHandler := user.NewHandler(userService)
-	formHandler := form.NewHandler(formService, sheetsService, userService)
+	formHandler := form.NewHandler(formService, sheetsService, userService, responseService)
 	responseHandler := response.NewHandler(responseService, formService)
 	authHandler := auth.NewHandler(authService, userService, cfg.FrontendURL, cfg.IsProduction())
 
@@ -73,7 +73,6 @@ func main() {
 	api := e.Group("/api")
 
 	auth := api.Group("/auth")
-	auth.POST("/login", authHandler.Login)
 	auth.POST("/logout", authHandler.Logout)
 	auth.GET("/google", authHandler.GoogleLogin)
 	auth.GET("/google/callback", authHandler.GoogleCallback)
@@ -96,7 +95,6 @@ func main() {
 	protected.DELETE("/forms/:id", formHandler.DeleteForm)
 	protected.POST("/forms/:id/publish", formHandler.PublishForm)
 	protected.POST("/forms/:id/unpublish", formHandler.UnpublishForm)
-	protected.POST("/forms/:id/sheets/link", formHandler.LinkGoogleSheet)
 	protected.POST("/forms/:id/sheets/create", formHandler.CreateAndLinkGoogleSheet)
 	protected.DELETE("/forms/:id/sheets/link", formHandler.UnlinkGoogleSheet)
 

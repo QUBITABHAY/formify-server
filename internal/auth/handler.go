@@ -28,11 +28,6 @@ func NewHandler(service *Service, userService *user.Service, frontendURL string,
 	}
 }
 
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 type AuthResponse struct {
 	User UserData `json:"user"`
 }
@@ -98,32 +93,6 @@ func (h *Handler) clearTokenCookie(c *echo.Context) {
 		MaxAge:   -1,
 	}
 	c.SetCookie(cookie)
-}
-
-func (h *Handler) Login(c *echo.Context) error {
-	var req LoginRequest
-	if err := c.Bind(&req); err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
-	}
-
-	if req.Email == "" || req.Password == "" {
-		return shared.RespondError(c, http.StatusBadRequest, "Email and password are required")
-	}
-
-	user, token, err := h.service.Login(c.Request().Context(), req.Email, req.Password)
-	if err != nil {
-		return shared.RespondError(c, http.StatusUnauthorized, err.Error())
-	}
-
-	h.setTokenCookie(c, token)
-
-	return c.JSON(http.StatusOK, AuthResponse{
-		User: UserData{
-			ID:    user.ID,
-			Name:  user.Name,
-			Email: user.Email,
-		},
-	})
 }
 
 func (h *Handler) Logout(c *echo.Context) error {
