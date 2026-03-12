@@ -20,6 +20,9 @@ type Config struct {
 	GoogleServiceAccountKey     string `mapstructure:"GOOGLE_SERVICE_ACCOUNT_KEY"`
 	FrontendURL                 string `mapstructure:"FRONTEND_URL"`
 	CORSOrigins                 string `mapstructure:"CORS_ORIGINS"`
+	CloudinaryCloudName         string `mapstructure:"CLOUDINARY_CLOUD_NAME"`
+	CloudinaryAPIKey            string `mapstructure:"CLOUDINARY_API_KEY"`
+	CloudinaryAPISecret         string `mapstructure:"CLOUDINARY_API_SECRET"`
 }
 
 func (c *Config) IsProduction() bool {
@@ -52,6 +55,7 @@ func Load() *Config {
 		"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_CALLBACK_URL",
 		"GOOGLE_SERVICE_ACCOUNT_KEY_PATH", "GOOGLE_SERVICE_ACCOUNT_KEY",
 		"FRONTEND_URL", "CORS_ORIGINS",
+		"CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET",
 	} {
 		_ = viper.BindEnv(key, strings.ToUpper(key))
 	}
