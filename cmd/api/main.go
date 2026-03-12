@@ -8,6 +8,7 @@ import (
 	"formify/server/internal/config"
 	"formify/server/internal/database"
 	"formify/server/internal/db"
+	fileupload "formify/server/internal/file_upload"
 	"formify/server/internal/form"
 	"formify/server/internal/integrations/google"
 	customMw "formify/server/internal/middleware"
@@ -46,6 +47,12 @@ func main() {
 	responseHandler := response.NewHandler(responseService, formService)
 	authHandler := auth.NewHandler(authService, userService, cfg.FrontendURL, cfg.IsProduction())
 
+	uploadService, err := fileupload.NewService(cfg)
+	if err != nil {
+		log.Fatalf("Failed to initialize Cloudinary: %v", err)
+	}
+	uploadHandler := fileupload.NewHandler(uploadService, formService)
+
 	auth.InitProviders(
 		cfg.GoogleClientID,
 		cfg.GoogleClientSecret,
@@ -80,6 +87,7 @@ func main() {
 	api.POST("/users", userHandler.CreateUser)
 	api.GET("/forms/share/:share_url", formHandler.GetPublicFormsByShareURL)
 	api.POST("/forms/:form_id/responses", responseHandler.CreateResponse)
+	api.POST("/forms/:form_id/upload", uploadHandler.UploadFile)
 
 	protected := api.Group("")
 	protected.Use(customMw.Auth(cfg.JWTSecret))
