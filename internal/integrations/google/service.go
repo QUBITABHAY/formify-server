@@ -29,7 +29,6 @@ func InitSheetsService(credentialsPath, credentialsJSON string) *SheetsService {
 		return nil
 	}
 
-	log.Println("Google Sheets integration enabled")
 	return sheetsService
 }
 
