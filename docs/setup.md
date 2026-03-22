@@ -56,6 +56,7 @@ cp .env.example .env
 | `DATABASE_URL` | PostgreSQL connection string | —       |
 | `JWT_SECRET`   | JWT signing secret           | —       |
 | `PORT`         | Server port                  | `1323`  |
+| `ENV`          | Runtime mode (`development` enables colored console logs, `production` enables JSON logs) | `development` |
 
 ### Google/Auth Variables
 
