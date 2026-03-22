@@ -3,11 +3,13 @@ package google
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
 
+	"formify/server/internal/logger"
+
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
@@ -25,7 +27,7 @@ func InitSheetsService(credentialsPath, credentialsJSON string) *SheetsService {
 
 	sheetsService, err := NewSheetsService(context.Background(), credentialsPath, credentialsJSON)
 	if err != nil {
-		log.Printf("Warning: Google Sheets integration not available: %v", err)
+		logger.GetLogger().Warn("Google Sheets integration not available", zap.Error(err))
 		return nil
 	}
 

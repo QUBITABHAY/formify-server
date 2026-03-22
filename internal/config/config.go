@@ -1,10 +1,11 @@
 package config
 
 import (
-	"log"
 	"strings"
 
+	"formify/server/internal/logger"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -47,7 +48,7 @@ func Load() *Config {
 	viper.SetDefault("FRONTEND_URL", "http://localhost:5173")
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Println("No .env file found, using environment variables")
+		logger.GetLogger().Warn("No .env file found, using environment variables", zap.Error(err))
 	}
 
 	for _, key := range []string{
@@ -62,7 +63,7 @@ func Load() *Config {
 
 	cfg := &Config{}
 	if err := viper.Unmarshal(cfg); err != nil {
-		log.Fatalf("Failed to unmarshal config: %v", err)
+		logger.GetLogger().Fatal("Failed to unmarshal config", zap.Error(err))
 	}
 	return cfg
 }

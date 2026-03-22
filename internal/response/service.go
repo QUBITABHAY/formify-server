@@ -3,10 +3,12 @@ package response
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"formify/server/internal/integrations/google"
+	"formify/server/internal/logger"
+
+	"go.uber.org/zap"
 )
 
 type FormGetter interface {
@@ -52,13 +54,13 @@ func (s *Service) getSheetsServiceForUser(ctx context.Context, userID int32) *go
 
 	accessToken, refreshToken, expiry, err := s.userTokenGetter.GetUserTokens(ctx, userID)
 	if err != nil || accessToken == "" {
-		log.Printf("Failed to get user OAuth tokens: %v", err)
+		logger.GetLogger().Warn("Failed to get user OAuth tokens", zap.Error(err))
 		return nil
 	}
 
 	userSheetsService, err := google.NewSheetsServiceWithUserToken(ctx, accessToken, refreshToken, expiry)
 	if err != nil {
-		log.Printf("Failed to create user sheets service: %v", err)
+		logger.GetLogger().Warn("Failed to create user sheets service", zap.Error(err))
 		return nil
 	}
 
@@ -68,7 +70,7 @@ func (s *Service) getSheetsServiceForUser(ctx context.Context, userID int32) *go
 func (s *Service) syncResponseToSheetIfEnabled(ctx context.Context, response *Response) {
 	schema, sheetID, autoSync, userID, err := s.formGetter.GetFormByID(ctx, response.FormID)
 	if err != nil {
-		log.Printf("Failed to get form for sheets sync: %v", err)
+		logger.GetLogger().Warn("Failed to get form for sheets sync", zap.Error(err))
 		return
 	}
 
@@ -82,7 +84,7 @@ func (s *Service) syncResponseToSheetIfEnabled(ctx context.Context, response *Re
 
 	sheetsService := s.getSheetsServiceForUser(ctx, userID)
 	if sheetsService == nil {
-		log.Printf("No sheets service available for sync")
+		logger.GetLogger().Warn("No sheets service available for sync")
 		return
 	}
 
@@ -92,26 +94,26 @@ func (s *Service) syncResponseToSheetIfEnabled(ctx context.Context, response *Re
 func (s *Service) syncResponseToSheet(ctx context.Context, response *Response, schema []byte, sheetID string, sheetsService *google.SheetsService) {
 	fields, err := google.ParseFormSchema(schema)
 	if err != nil {
-		log.Printf("Failed to parse form schema for sheets sync: %v", err)
+		logger.GetLogger().Warn("Failed to parse form schema for sheets sync", zap.Error(err))
 		row, _, err := google.ResponseToRowWithoutSchema(response.ID, response.CreatedAt, response.Data)
 		if err != nil {
-			log.Printf("Failed to convert response to row: %v", err)
+			logger.GetLogger().Warn("Failed to convert response to row", zap.Error(err))
 			return
 		}
 		if err := sheetsService.AppendRow(ctx, sheetID, row); err != nil {
-			log.Printf("Failed to append row to sheet: %v", err)
+			logger.GetLogger().Warn("Failed to append row to sheet", zap.Error(err))
 		}
 		return
 	}
 
 	row, err := google.ResponseToRow(response.ID, response.CreatedAt, response.Data, fields)
 	if err != nil {
-		log.Printf("Failed to convert response to row: %v", err)
+		logger.GetLogger().Warn("Failed to convert response to row", zap.Error(err))
 		return
 	}
 
 	if err := sheetsService.AppendRow(ctx, sheetID, row); err != nil {
-		log.Printf("Failed to append row to sheet: %v", err)
+		logger.GetLogger().Warn("Failed to append row to sheet", zap.Error(err))
 	}
 }
 
@@ -189,12 +191,12 @@ func (s *Service) BackfillFormResponsesToSheet(ctx context.Context, formID int32
 			row, _, err = google.ResponseToRowWithoutSchema(resp.ID, resp.CreatedAt, resp.Data)
 		}
 		if err != nil {
-			log.Printf("Failed to convert response %d to row for backfill: %v", resp.ID, err)
+			logger.GetLogger().Warn("Failed to convert response to row for backfill", zap.Int32("response_id", resp.ID), zap.Error(err))
 			continue
 		}
 
 		if err := sheetsService.AppendRow(ctx, sheetID, row); err != nil {
-			log.Printf("Failed to append response %d during backfill: %v", resp.ID, err)
+			logger.GetLogger().Warn("Failed to append response during backfill", zap.Int32("response_id", resp.ID), zap.Error(err))
 			continue
 		}
 	}
@@ -205,7 +207,7 @@ func (s *Service) BackfillFormResponsesToSheet(ctx context.Context, formID int32
 func (s *Service) removeResponseFromSheetIfEnabled(ctx context.Context, response *Response) {
 	_, sheetID, autoSync, userID, err := s.formGetter.GetFormByID(ctx, response.FormID)
 	if err != nil {
-		log.Printf("Failed to get form for sheets delete sync: %v", err)
+		logger.GetLogger().Warn("Failed to get form for sheets delete sync", zap.Error(err))
 		return
 	}
 
@@ -215,11 +217,11 @@ func (s *Service) removeResponseFromSheetIfEnabled(ctx context.Context, response
 
 	sheetsService := s.getSheetsServiceForUser(ctx, userID)
 	if sheetsService == nil {
-		log.Printf("No sheets service available for delete sync")
+		logger.GetLogger().Warn("No sheets service available for delete sync")
 		return
 	}
 
 	if err := sheetsService.DeleteRowBySubmissionID(ctx, *sheetID, response.ID); err != nil {
-		log.Printf("Failed to remove response %d from sheet: %v", response.ID, err)
+		logger.GetLogger().Warn("Failed to remove response from sheet", zap.Int32("response_id", response.ID), zap.Error(err))
 	}
 }

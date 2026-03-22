@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 
 	"formify/server/internal/auth"
@@ -11,6 +10,7 @@ import (
 	fileupload "formify/server/internal/file_upload"
 	"formify/server/internal/form"
 	"formify/server/internal/integrations/google"
+	"formify/server/internal/logger"
 	customMw "formify/server/internal/middleware"
 	"formify/server/internal/response"
 	"formify/server/internal/shared"
@@ -21,10 +21,17 @@ import (
 )
 
 func main() {
+	if err := logger.InitFromEnv(); err != nil {
+		panic(err)
+	}
+	defer logger.Close()
+
+	log := logger.GetLogger()
+
 	cfg := config.Load()
 
 	if err := database.InitDB(cfg.DatabaseURL); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		log.Fatal("Failed to initialize database", logger.ToField("error", err))
 	}
 	defer database.CloseDB()
 
@@ -49,7 +56,7 @@ func main() {
 
 	uploadService, err := fileupload.NewService(cfg)
 	if err != nil {
-		log.Fatalf("Failed to initialize Cloudinary: %v", err)
+		log.Fatal("Failed to initialize Cloudinary", logger.ToField("error", err))
 	}
 	uploadHandler := fileupload.NewHandler(uploadService, formService)
 
@@ -62,7 +69,7 @@ func main() {
 
 	e := echo.New()
 
-	e.Use(middleware.RequestLogger())
+	e.Use(logger.RequestLogger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins:     cfg.GetCORSOrigins(),
@@ -110,8 +117,8 @@ func main() {
 	protected.GET("/responses/:id", responseHandler.GetResponse)
 	protected.DELETE("/responses/:id", responseHandler.DeleteResponse)
 
-	log.Printf("Server starting on port %s", cfg.Port)
+	log.Info("Server starting", logger.ToField("port", cfg.Port))
 	if err := e.Start(":" + cfg.Port); err != nil {
-		e.Logger.Error("failed to start server", "error", err)
+		log.Error("Failed to start server", logger.ToField("error", err))
 	}
 }
