@@ -20,8 +20,9 @@ func InitProviders(googleClientID, googleClientSecret, googleCallbackURL, sessio
 		googleCallbackURL,
 		"email",
 		"profile",
-		"https://www.googleapis.com/auth/spreadsheets",
-		"https://www.googleapis.com/auth/drive",
+		"https://www.googleapis.com/auth/drive.file",
+		// "https://www.googleapis.com/auth/spreadsheets",
+		// "https://www.googleapis.com/auth/drive",
 	)
 	// Request offline access to get refresh token
 	googleProvider.SetAccessType("offline")
