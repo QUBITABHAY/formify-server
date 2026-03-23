@@ -45,3 +45,4 @@ formify-service.json
 
 # Azure deployment (contains secrets)
 deploy.yaml
+deploy.sh
