@@ -119,6 +119,9 @@ func NewFormGetterAdapter(service *Service) *FormGetterAdapter {
 	return &FormGetterAdapter{service: service}
 }
 
-func (a *FormGetterAdapter) GetFormByID(ctx context.Context, id int32) (schema []byte, sheetID *string, autoSync bool, userID int32, err error) {
+func (a *FormGetterAdapter) GetFormByID(
+	ctx context.Context,
+	id int32,
+) (schema []byte, sheetID *string, autoSync bool, userID int32, err error) {
 	return a.service.GetFormForSheets(ctx, id)
 }

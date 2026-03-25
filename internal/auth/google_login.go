@@ -66,7 +66,13 @@ func (h *Handler) GoogleCallback(c *echo.Context) error {
 				return shared.RespondError(c, http.StatusInternalServerError, "Failed to link OAuth account")
 			}
 			if gothUser.AccessToken != "" {
-				if err := h.userService.UpdateOAuthTokens(c.Request().Context(), existingByEmail.ID, gothUser.AccessToken, gothUser.RefreshToken, gothUser.ExpiresAt); err != nil {
+				if err := h.userService.UpdateOAuthTokens(
+					c.Request().Context(),
+					existingByEmail.ID,
+					gothUser.AccessToken,
+					gothUser.RefreshToken,
+					gothUser.ExpiresAt,
+				); err != nil {
 					return shared.RespondError(c, http.StatusInternalServerError, "Failed to update OAuth tokens")
 				}
 			}

@@ -26,7 +26,12 @@ type Service struct {
 	userTokenGetter UserTokenGetter
 }
 
-func NewService(responseRepo Repository, sheetsService *google.SheetsService, formGetter FormGetter, userTokenGetter UserTokenGetter) *Service {
+func NewService(
+	responseRepo Repository,
+	sheetsService *google.SheetsService,
+	formGetter FormGetter,
+	userTokenGetter UserTokenGetter,
+) *Service {
 	return &Service{
 		responseRepo:    responseRepo,
 		sheetsService:   sheetsService,

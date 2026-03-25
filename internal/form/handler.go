@@ -24,7 +24,12 @@ type Handler struct {
 	responseSvc   *responsepkg.Service
 }
 
-func NewHandler(service *Service, sheetsService *google.SheetsService, userService *user.Service, responseSvc *responsepkg.Service) *Handler {
+func NewHandler(
+	service *Service,
+	sheetsService *google.SheetsService,
+	userService *user.Service,
+	responseSvc *responsepkg.Service,
+) *Handler {
 	return &Handler{service: service, sheetsService: sheetsService, userService: userService, responseSvc: responseSvc}
 }
 
@@ -229,23 +234,32 @@ func (h *Handler) UpdateForm(c *echo.Context) error {
 	return c.JSON(http.StatusOK, formToResponse(existingForm))
 }
 
-func (h *Handler) PublishForm(c *echo.Context) error {
+func (h *Handler) getAuthorizedForm(c *echo.Context) (int32, *Form, error) {
 	authUserID, ok := shared.GetAuthUserID(c)
 	if !ok {
-		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+		return 0, nil, shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
 	}
 
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
+		return 0, nil, shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
 	}
 
 	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
 	if err != nil {
-		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+		return 0, nil, shared.RespondError(c, http.StatusNotFound, "Form not found")
 	}
 	if existingForm.UserID != authUserID {
-		return shared.RespondError(c, http.StatusForbidden, "Access denied")
+		return 0, nil, shared.RespondError(c, http.StatusForbidden, "Access denied")
+	}
+
+	return int32(id), existingForm, nil
+}
+
+func (h *Handler) PublishForm(c *echo.Context) error {
+	id, _, err := h.getAuthorizedForm(c)
+	if err != nil {
+		return err
 	}
 
 	form, err := h.service.PublishForm(c.Request().Context(), int32(id))
@@ -257,22 +271,9 @@ func (h *Handler) PublishForm(c *echo.Context) error {
 }
 
 func (h *Handler) UnpublishForm(c *echo.Context) error {
-	authUserID, ok := shared.GetAuthUserID(c)
-	if !ok {
-		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
-	}
-
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+	id, _, err := h.getAuthorizedForm(c)
 	if err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
-	}
-
-	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
-	if err != nil {
-		return shared.RespondError(c, http.StatusNotFound, "Form not found")
-	}
-	if existingForm.UserID != authUserID {
-		return shared.RespondError(c, http.StatusForbidden, "Access denied")
+		return err
 	}
 
 	form, err := h.service.UnpublishForm(c.Request().Context(), int32(id))
@@ -398,22 +399,9 @@ func (h *Handler) CreateAndLinkGoogleSheet(c *echo.Context) error {
 }
 
 func (h *Handler) UnlinkGoogleSheet(c *echo.Context) error {
-	authUserID, ok := shared.GetAuthUserID(c)
-	if !ok {
-		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
-	}
-
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+	id, _, err := h.getAuthorizedForm(c)
 	if err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
-	}
-
-	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
-	if err != nil {
-		return shared.RespondError(c, http.StatusNotFound, "Form not found")
-	}
-	if existingForm.UserID != authUserID {
-		return shared.RespondError(c, http.StatusForbidden, "Access denied")
+		return err
 	}
 
 	form, err := h.service.UnlinkGoogleSheet(c.Request().Context(), int32(id))

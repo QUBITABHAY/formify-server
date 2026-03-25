@@ -40,7 +40,11 @@ func (h *Handler) UploadFile(c *echo.Context) error {
 
 	file, fileHeader, err := c.Request().FormFile("file")
 	if err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Missing or invalid file field (expected multipart/form-data with field name 'file')")
+		return shared.RespondError(
+			c,
+			http.StatusBadRequest,
+			"Missing or invalid file field (expected multipart/form-data with field name 'file')",
+		)
 	}
 	defer file.Close()
 
