@@ -15,20 +15,21 @@ var (
 )
 
 const keyValuePairSize = 2
+const timestampKey = "timestamp"
 
 func Init(environment string) error {
 	var config zap.Config
 
 	if environment == "production" {
 		config = zap.NewProductionConfig()
-		config.EncoderConfig.TimeKey = "timestamp"
+		config.EncoderConfig.TimeKey = timestampKey
 		config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	} else {
 		config = zap.NewDevelopmentConfig()
 		config.OutputPaths = []string{"stdout"}
 		config.ErrorOutputPaths = []string{"stderr"}
 		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-		config.EncoderConfig.TimeKey = "timestamp"
+		config.EncoderConfig.TimeKey = timestampKey
 		config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 		config.Encoding = "console"
 	}

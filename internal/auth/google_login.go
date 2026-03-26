@@ -13,12 +13,14 @@ import (
 	"formify/server/internal/user"
 )
 
+const googleProvider = "google"
+
 func (h *Handler) GoogleLogin(c *echo.Context) error {
 	r := c.Request()
 	w := c.Response()
 
 	q := r.URL.Query()
-	q.Set("provider", "google")
+	q.Set("provider", googleProvider)
 	r.URL.RawQuery = q.Encode()
 
 	gothic.BeginAuthHandler(w, r)
@@ -30,7 +32,7 @@ func (h *Handler) GoogleCallback(c *echo.Context) error {
 	w := c.Response()
 
 	q := r.URL.Query()
-	q.Set("provider", "google")
+	q.Set("provider", googleProvider)
 	r.URL.RawQuery = q.Encode()
 
 	gothUser, err := gothic.CompleteUserAuth(w, r)
@@ -55,7 +57,7 @@ func (h *Handler) GoogleCallback(c *echo.Context) error {
 
 func (h *Handler) getUserOrCreateFromOAuth(c *echo.Context, gothUser goth.User) (*user.User, error) {
 	ctx := c.Request().Context()
-	provider := "google"
+	provider := googleProvider
 
 	// Try to find existing OAuth user
 	existingUser, err := h.userService.GetUserByOAuthID(ctx, provider, gothUser.UserID)
@@ -96,7 +98,7 @@ func (h *Handler) updateUserOAuthTokens(c *echo.Context, userID int32, gothUser 
 
 func (h *Handler) linkExistingUserToOAuth(c *echo.Context, existingUser *user.User, gothUser goth.User) (*user.User, error) {
 	ctx := c.Request().Context()
-	provider := "google"
+	provider := googleProvider
 
 	existingUser.OAuthProvider = &provider
 	existingUser.OAuthID = &gothUser.UserID
@@ -115,7 +117,7 @@ func (h *Handler) linkExistingUserToOAuth(c *echo.Context, existingUser *user.Us
 
 func (h *Handler) createNewOAuthUser(c *echo.Context, gothUser goth.User) (*user.User, error) {
 	ctx := c.Request().Context()
-	provider := "google"
+	provider := googleProvider
 
 	u := &user.User{
 		Name:               gothUser.Name,

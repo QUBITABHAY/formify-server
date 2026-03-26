@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const fixedResponseHeaders = 2
+
 type FormField struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
@@ -217,7 +219,8 @@ func ResponseToRowWithoutSchema(responseID int32, submittedAt time.Time, respons
 	}
 	sort.Strings(keys)
 
-	headers := []string{"Submission ID", "Submitted At"}
+	headers := make([]string, 0, fixedResponseHeaders+len(keys))
+	headers = append(headers, "Submission ID", "Submitted At")
 	headers = append(headers, keys...)
 
 	row := []interface{}{
