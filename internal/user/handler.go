@@ -1,12 +1,13 @@
+// Package user contains user domain models, services, and HTTP handlers.
 package user
 
 import (
 	"net/http"
 	"strconv"
 
-	"formify/server/internal/shared"
-
 	"github.com/labstack/echo/v5"
+
+	"formify/server/internal/shared"
 )
 
 type Handler struct {
@@ -23,6 +24,7 @@ type CreateUserRequest struct {
 	Password string `json:"password"`
 }
 
+//revive:disable-next-line:exported
 type UserResponse struct {
 	ID    int32  `json:"id"`
 	Name  string `json:"name"`
@@ -67,7 +69,7 @@ func (h *Handler) GetUser(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid user ID")
 	}
 
-	if int32(id) != authUserID {
+	if id != int64(authUserID) {
 		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 

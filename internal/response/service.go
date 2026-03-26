@@ -2,13 +2,14 @@ package response
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
+
 	"formify/server/internal/integrations/google"
 	"formify/server/internal/logger"
-
-	"go.uber.org/zap"
 )
 
 type FormGetter interface {
@@ -25,6 +26,8 @@ type Service struct {
 	formGetter      FormGetter
 	userTokenGetter UserTokenGetter
 }
+
+var errNoSheetsService = errors.New("no sheets service available")
 
 func NewService(
 	responseRepo Repository,
@@ -46,7 +49,7 @@ func (s *Service) CreateResponse(ctx context.Context, response *Response) error 
 	}
 
 	if s.formGetter != nil {
-		go s.syncResponseToSheetIfEnabled(context.Background(), response)
+		go s.syncResponseToSheetIfEnabled(ctx, response)
 	}
 
 	return nil
@@ -96,17 +99,23 @@ func (s *Service) syncResponseToSheetIfEnabled(ctx context.Context, response *Re
 	s.syncResponseToSheet(ctx, response, schema, *sheetID, sheetsService)
 }
 
-func (s *Service) syncResponseToSheet(ctx context.Context, response *Response, schema []byte, sheetID string, sheetsService *google.SheetsService) {
+func (*Service) syncResponseToSheet(
+	ctx context.Context,
+	response *Response,
+	schema []byte,
+	sheetID string,
+	sheetsService *google.SheetsService,
+) {
 	fields, err := google.ParseFormSchema(schema)
 	if err != nil {
 		logger.GetLogger().Warn("Failed to parse form schema for sheets sync", zap.Error(err))
-		row, _, err := google.ResponseToRowWithoutSchema(response.ID, response.CreatedAt, response.Data)
-		if err != nil {
-			logger.GetLogger().Warn("Failed to convert response to row", zap.Error(err))
+		row, _, rowErr := google.ResponseToRowWithoutSchema(response.ID, response.CreatedAt, response.Data)
+		if rowErr != nil {
+			logger.GetLogger().Warn("Failed to convert response to row", zap.Error(rowErr))
 			return
 		}
-		if err := sheetsService.AppendRow(ctx, sheetID, row); err != nil {
-			logger.GetLogger().Warn("Failed to append row to sheet", zap.Error(err))
+		if appendErr := sheetsService.AppendRow(ctx, sheetID, row); appendErr != nil {
+			logger.GetLogger().Warn("Failed to append row to sheet", zap.Error(appendErr))
 		}
 		return
 	}
@@ -130,7 +139,7 @@ func (s *Service) GetFormResponses(ctx context.Context, formID int32) ([]*Respon
 	return s.responseRepo.GetByFormID(ctx, formID)
 }
 
-func (s *Service) GetFormResponsesPaginated(ctx context.Context, formID int32, limit, offset int32) ([]*Response, error) {
+func (s *Service) GetFormResponsesPaginated(ctx context.Context, formID, limit, offset int32) ([]*Response, error) {
 	return s.responseRepo.GetByFormIDPaginated(ctx, formID, limit, offset)
 }
 
@@ -148,7 +157,7 @@ func (s *Service) DeleteResponse(ctx context.Context, id int32) error {
 		return nil
 	}
 
-	go s.removeResponseFromSheetIfEnabled(context.Background(), response)
+	go s.removeResponseFromSheetIfEnabled(ctx, response)
 
 	return nil
 }
@@ -164,7 +173,7 @@ func (s *Service) BackfillFormResponsesToSheet(ctx context.Context, formID int32
 
 	sheetsService := s.getSheetsServiceForUser(ctx, userID)
 	if sheetsService == nil {
-		return fmt.Errorf("no sheets service available")
+		return errNoSheetsService
 	}
 
 	responses, err := s.responseRepo.GetByFormID(ctx, formID)
@@ -183,20 +192,27 @@ func (s *Service) BackfillFormResponsesToSheet(ctx context.Context, formID int32
 
 	fields, schemaErr := google.ParseFormSchema(schema)
 
+	return s.appendMissingResponsesToSheet(ctx, sheetID, responses, existingIDs, fields, schemaErr, sheetsService)
+}
+
+func (*Service) appendMissingResponsesToSheet(
+	ctx context.Context,
+	sheetID string,
+	responses []*Response,
+	existingIDs map[int32]struct{},
+	fields []google.FormField,
+	schemaErr error,
+	sheetsService *google.SheetsService,
+) error {
 	for i := len(responses) - 1; i >= 0; i-- {
 		resp := responses[i]
 		if _, exists := existingIDs[resp.ID]; exists {
 			continue
 		}
 
-		var row []interface{}
-		if schemaErr == nil {
-			row, err = google.ResponseToRow(resp.ID, resp.CreatedAt, resp.Data, fields)
-		} else {
-			row, _, err = google.ResponseToRowWithoutSchema(resp.ID, resp.CreatedAt, resp.Data)
-		}
-		if err != nil {
-			logger.GetLogger().Warn("Failed to convert response to row for backfill", zap.Int32("response_id", resp.ID), zap.Error(err))
+		row, rowErr := buildBackfillRow(resp, fields, schemaErr)
+		if rowErr != nil {
+			logger.GetLogger().Warn("Failed to convert response to row for backfill", zap.Int32("response_id", resp.ID), zap.Error(rowErr))
 			continue
 		}
 
@@ -207,6 +223,15 @@ func (s *Service) BackfillFormResponsesToSheet(ctx context.Context, formID int32
 	}
 
 	return nil
+}
+
+func buildBackfillRow(resp *Response, fields []google.FormField, schemaErr error) ([]any, error) {
+	if schemaErr == nil {
+		return google.ResponseToRow(resp.ID, resp.CreatedAt, resp.Data, fields)
+	}
+
+	row, _, err := google.ResponseToRowWithoutSchema(resp.ID, resp.CreatedAt, resp.Data)
+	return row, err
 }
 
 func (s *Service) removeResponseFromSheetIfEnabled(ctx context.Context, response *Response) {

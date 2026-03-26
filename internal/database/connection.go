@@ -1,3 +1,4 @@
+// Package database provides database connection lifecycle helpers.
 package database
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+//nolint:gochecknoglobals // Application-wide shared DB pool.
 var DBPool *pgxpool.Pool
 
 func InitDB(databaseURL string) error {

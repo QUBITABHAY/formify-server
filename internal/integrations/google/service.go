@@ -1,24 +1,31 @@
+// Package google contains Google Sheets integration services and helpers.
 package google
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
-
-	"formify/server/internal/logger"
 
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
+
+	"formify/server/internal/logger"
 )
 
 type SheetsService struct {
 	service *sheets.Service
 }
+
+var (
+	errMissingServiceAccountCreds = errors.New("google service account credentials are required")
+	errNoAvailableSheets          = errors.New("spreadsheet has no available sheets")
+)
 
 func InitSheetsService(credentialsPath, credentialsJSON string) *SheetsService {
 	if credentialsPath == "" && credentialsJSON == "" {
@@ -35,22 +42,22 @@ func InitSheetsService(credentialsPath, credentialsJSON string) *SheetsService {
 }
 
 func NewSheetsService(ctx context.Context, credentialsPath, credentialsJSON string) (*SheetsService, error) {
+	scopes := []string{sheets.SpreadsheetsScope, drive.DriveScope}
 	var opt option.ClientOption
 
 	switch {
 	case credentialsJSON != "":
-		opt = option.WithCredentialsJSON([]byte(credentialsJSON))
+		opt = option.WithAuthCredentialsJSON(option.ServiceAccount, []byte(credentialsJSON))
 	case credentialsPath != "":
-		opt = option.WithCredentialsFile(credentialsPath)
+		opt = option.WithAuthCredentialsFile(option.ServiceAccount, credentialsPath)
 	default:
-		return nil, fmt.Errorf("google service account credentials are required")
+		return nil, errMissingServiceAccountCreds
 	}
 
 	srv, err := sheets.NewService(ctx,
 		opt,
 		option.WithScopes(
-			sheets.SpreadsheetsScope,
-			drive.DriveScope,
+			scopes...,
 		),
 	)
 	if err != nil {
@@ -99,13 +106,13 @@ func (s *SheetsService) CreateSpreadsheet(ctx context.Context, title string, hea
 	}
 
 	if len(headers) > 0 {
-		headerRow := make([]interface{}, len(headers))
+		headerRow := make([]any, len(headers))
 		for i, h := range headers {
 			headerRow[i] = h
 		}
 
 		valueRange := &sheets.ValueRange{
-			Values: [][]interface{}{headerRow},
+			Values: [][]any{headerRow},
 		}
 
 		_, err = s.service.Spreadsheets.Values.Update(
@@ -121,9 +128,9 @@ func (s *SheetsService) CreateSpreadsheet(ctx context.Context, title string, hea
 	return created.SpreadsheetId, nil
 }
 
-func (s *SheetsService) AppendRow(ctx context.Context, spreadsheetID string, values []interface{}) error {
+func (s *SheetsService) AppendRow(ctx context.Context, spreadsheetID string, values []any) error {
 	valueRange := &sheets.ValueRange{
-		Values: [][]interface{}{values},
+		Values: [][]any{values},
 	}
 
 	_, err := s.service.Spreadsheets.Values.Append(
@@ -190,18 +197,7 @@ func (s *SheetsService) DeleteRowBySubmissionID(ctx context.Context, spreadsheet
 	}
 
 	target := strconv.Itoa(int(submissionID))
-	targetRow := -1
-	for i, row := range valueRange.Values {
-		rowNumber := i + 1
-		if rowNumber == 1 || len(row) == 0 {
-			continue
-		}
-
-		if strings.TrimSpace(fmt.Sprintf("%v", row[0])) == target {
-			targetRow = rowNumber
-			break
-		}
-	}
+	targetRow := findTargetRow(valueRange.Values, target)
 
 	if targetRow == -1 {
 		return nil
@@ -212,21 +208,9 @@ func (s *SheetsService) DeleteRowBySubmissionID(ctx context.Context, spreadsheet
 		return fmt.Errorf("failed to load spreadsheet metadata: %w", err)
 	}
 
-	var sheetID int64
-	found := false
-	for _, sheet := range spreadsheet.Sheets {
-		if sheet.Properties != nil && sheet.Properties.Title == "Form Responses" {
-			sheetID = sheet.Properties.SheetId
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		if len(spreadsheet.Sheets) == 0 || spreadsheet.Sheets[0].Properties == nil {
-			return fmt.Errorf("spreadsheet has no available sheets")
-		}
-		sheetID = spreadsheet.Sheets[0].Properties.SheetId
+	sheetID, err := resolveSheetID(spreadsheet)
+	if err != nil {
+		return err
 	}
 
 	_, err = s.service.Spreadsheets.BatchUpdate(spreadsheetID, &sheets.BatchUpdateSpreadsheetRequest{
@@ -248,4 +232,33 @@ func (s *SheetsService) DeleteRowBySubmissionID(ctx context.Context, spreadsheet
 	}
 
 	return nil
+}
+
+func findTargetRow(values [][]any, target string) int {
+	for i, row := range values {
+		rowNumber := i + 1
+		if rowNumber == 1 || len(row) == 0 {
+			continue
+		}
+
+		if strings.TrimSpace(fmt.Sprintf("%v", row[0])) == target {
+			return rowNumber
+		}
+	}
+
+	return -1
+}
+
+func resolveSheetID(spreadsheet *sheets.Spreadsheet) (int64, error) {
+	for _, sheet := range spreadsheet.Sheets {
+		if sheet.Properties != nil && sheet.Properties.Title == "Form Responses" {
+			return sheet.Properties.SheetId, nil
+		}
+	}
+
+	if len(spreadsheet.Sheets) == 0 || spreadsheet.Sheets[0].Properties == nil {
+		return 0, errNoAvailableSheets
+	}
+
+	return spreadsheet.Sheets[0].Properties.SheetId, nil
 }

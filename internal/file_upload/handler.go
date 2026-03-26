@@ -1,3 +1,4 @@
+// Package fileupload provides file upload validation and storage integration.
 package fileupload
 
 import (
@@ -6,9 +7,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"formify/server/internal/shared"
-
 	"github.com/labstack/echo/v5"
+
+	"formify/server/internal/shared"
 )
 
 type FormChecker interface {
@@ -46,7 +47,9 @@ func (h *Handler) UploadFile(c *echo.Context) error {
 			"Missing or invalid file field (expected multipart/form-data with field name 'file')",
 		)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	result, err := h.service.UploadFile(c.Request().Context(), strconv.FormatInt(formID, 10), file, fileHeader)
 	if err != nil {

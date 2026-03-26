@@ -3,6 +3,9 @@ package main
 import (
 	"net/http"
 
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
+
 	"formify/server/internal/auth"
 	"formify/server/internal/config"
 	"formify/server/internal/database"
@@ -15,26 +18,53 @@ import (
 	"formify/server/internal/response"
 	"formify/server/internal/shared"
 	"formify/server/internal/user"
-
-	"github.com/labstack/echo/v5"
-	"github.com/labstack/echo/v5/middleware"
 )
 
 func main() {
 	if err := logger.InitFromEnv(); err != nil {
 		panic(err)
 	}
-	defer logger.Close()
+	defer func() {
+		if err := logger.Close(); err != nil {
+			logger.GetLogger().Error("Failed to close logger", logger.ToField("error", err))
+		}
+	}()
 
 	log := logger.GetLogger()
 
 	cfg := config.Load()
 
 	if err := database.InitDB(cfg.DatabaseURL); err != nil {
-		log.Fatal("Failed to initialize database", logger.ToField("error", err))
+		log.Error("Failed to initialize database", logger.ToField("error", err))
+		return
 	}
 	defer database.CloseDB()
 
+	e := echo.New()
+	setupMiddleware(e, cfg)
+	if err := setupRoutes(e, cfg); err != nil {
+		log.Error("Failed to setup routes", logger.ToField("error", err))
+		return
+	}
+
+	log.Info("Server starting", logger.ToField("port", cfg.Port))
+	if err := e.Start(":" + cfg.Port); err != nil {
+		log.Error("Failed to start server", logger.ToField("error", err))
+	}
+}
+
+func setupMiddleware(e *echo.Echo, cfg *config.Config) {
+	e.Use(logger.RequestLogger())
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     cfg.GetCORSOrigins(),
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}))
+}
+
+func setupRoutes(e *echo.Echo, cfg *config.Config) error {
 	queries := db.New(database.DBPool)
 
 	userRepo := user.NewRepository(queries)
@@ -56,7 +86,7 @@ func main() {
 
 	uploadService, err := fileupload.NewService(cfg)
 	if err != nil {
-		log.Fatal("Failed to initialize Cloudinary", logger.ToField("error", err))
+		return err
 	}
 	uploadHandler := fileupload.NewHandler(uploadService, formService)
 
@@ -67,17 +97,6 @@ func main() {
 		cfg.SessionSecret,
 	)
 
-	e := echo.New()
-
-	e.Use(logger.RequestLogger())
-	e.Use(middleware.Recover())
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     cfg.GetCORSOrigins(),
-		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
-		AllowCredentials: true,
-	}))
-
 	e.GET("/", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "Server is running")
 	})
@@ -86,10 +105,10 @@ func main() {
 
 	api := e.Group("/api")
 
-	auth := api.Group("/auth")
-	auth.POST("/logout", authHandler.Logout)
-	auth.GET("/google", authHandler.GoogleLogin)
-	auth.GET("/google/callback", authHandler.GoogleCallback)
+	authGroup := api.Group("/auth")
+	authGroup.POST("/logout", authHandler.Logout)
+	authGroup.GET("/google", authHandler.GoogleLogin)
+	authGroup.GET("/google/callback", authHandler.GoogleCallback)
 
 	api.POST("/users", userHandler.CreateUser)
 	api.GET("/forms/share/:share_url", formHandler.GetPublicFormsByShareURL)
@@ -117,8 +136,5 @@ func main() {
 	protected.GET("/responses/:id", responseHandler.GetResponse)
 	protected.DELETE("/responses/:id", responseHandler.DeleteResponse)
 
-	log.Info("Server starting", logger.ToField("port", cfg.Port))
-	if err := e.Start(":" + cfg.Port); err != nil {
-		log.Error("Failed to start server", logger.ToField("error", err))
-	}
+	return nil
 }

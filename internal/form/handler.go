@@ -1,3 +1,4 @@
+// Package form contains form domain handlers, services, and persistence logic.
 package form
 
 import (
@@ -9,12 +10,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/labstack/echo/v5"
+
 	"formify/server/internal/integrations/google"
 	responsepkg "formify/server/internal/response"
 	"formify/server/internal/shared"
 	"formify/server/internal/user"
-
-	"github.com/labstack/echo/v5"
 )
 
 type Handler struct {
@@ -48,6 +49,7 @@ type UpdateFormRequest struct {
 	Settings    json.RawMessage `json:"settings,omitempty"`
 }
 
+//revive:disable-next-line:exported
 type FormResponse struct {
 	ID                  int32           `json:"id"`
 	Name                string          `json:"name"`
@@ -154,7 +156,7 @@ func (h *Handler) GetUserForms(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid user ID")
 	}
 
-	if int32(userID) != authUserID {
+	if userID != int64(authUserID) {
 		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
@@ -214,6 +216,16 @@ func (h *Handler) UpdateForm(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
 	}
 
+	applyUpdateFormRequest(existingForm, req)
+
+	if err := h.service.UpdateForm(c.Request().Context(), existingForm); err != nil {
+		return shared.RespondError(c, http.StatusInternalServerError, "Failed to update form")
+	}
+
+	return c.JSON(http.StatusOK, formToResponse(existingForm))
+}
+
+func applyUpdateFormRequest(existingForm *Form, req UpdateFormRequest) {
 	if req.Name != "" {
 		existingForm.Name = req.Name
 	}
@@ -226,43 +238,37 @@ func (h *Handler) UpdateForm(c *echo.Context) error {
 	if req.Settings != nil {
 		existingForm.Settings = req.Settings
 	}
-
-	if err := h.service.UpdateForm(c.Request().Context(), existingForm); err != nil {
-		return shared.RespondError(c, http.StatusInternalServerError, "Failed to update form")
-	}
-
-	return c.JSON(http.StatusOK, formToResponse(existingForm))
 }
 
-func (h *Handler) getAuthorizedForm(c *echo.Context) (int32, *Form, error) {
+func (h *Handler) getAuthorizedForm(c *echo.Context) (int32, error) {
 	authUserID, ok := shared.GetAuthUserID(c)
 	if !ok {
-		return 0, nil, shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+		return 0, shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
 	}
 
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
-		return 0, nil, shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
+		return 0, shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
 	}
 
 	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
 	if err != nil {
-		return 0, nil, shared.RespondError(c, http.StatusNotFound, "Form not found")
+		return 0, shared.RespondError(c, http.StatusNotFound, "Form not found")
 	}
 	if existingForm.UserID != authUserID {
-		return 0, nil, shared.RespondError(c, http.StatusForbidden, "Access denied")
+		return 0, shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
-	return int32(id), existingForm, nil
+	return int32(id), nil
 }
 
 func (h *Handler) PublishForm(c *echo.Context) error {
-	id, _, err := h.getAuthorizedForm(c)
+	id, err := h.getAuthorizedForm(c)
 	if err != nil {
 		return err
 	}
 
-	form, err := h.service.PublishForm(c.Request().Context(), int32(id))
+	form, err := h.service.PublishForm(c.Request().Context(), id)
 	if err != nil {
 		return shared.RespondError(c, http.StatusInternalServerError, "Failed to publish form")
 	}
@@ -271,12 +277,12 @@ func (h *Handler) PublishForm(c *echo.Context) error {
 }
 
 func (h *Handler) UnpublishForm(c *echo.Context) error {
-	id, _, err := h.getAuthorizedForm(c)
+	id, err := h.getAuthorizedForm(c)
 	if err != nil {
 		return err
 	}
 
-	form, err := h.service.UnpublishForm(c.Request().Context(), int32(id))
+	form, err := h.service.UnpublishForm(c.Request().Context(), id)
 	if err != nil {
 		return shared.RespondError(c, http.StatusInternalServerError, "Failed to unpublish form")
 	}
@@ -311,44 +317,74 @@ func (h *Handler) DeleteForm(c *echo.Context) error {
 }
 
 func (h *Handler) CreateAndLinkGoogleSheet(c *echo.Context) error {
-	authUserID, ok := shared.GetAuthUserID(c)
-	if !ok {
-		return shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
-	}
-
-	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+	id, err := h.getAuthorizedForm(c)
 	if err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
+		return err
 	}
 
-	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
+	existingForm, err := h.service.GetFormByID(c.Request().Context(), id)
 	if err != nil {
 		return shared.RespondError(c, http.StatusNotFound, "Form not found")
 	}
-	if existingForm.UserID != authUserID {
-		return shared.RespondError(c, http.StatusForbidden, "Access denied")
+
+	title, headers, err := prepareGoogleSheetRequest(c, existingForm)
+	if err != nil {
+		return err
 	}
 
+	sheetsService, err := h.getUserSheetsService(c, existingForm.UserID)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Using user's OAuth token for Google Sheets")
+
+	spreadsheetID, err := sheetsService.CreateSpreadsheet(c.Request().Context(), title, headers)
+	if err != nil {
+		log.Printf("Failed to create Google Sheet for form %d: %v", id, err)
+		return shared.RespondError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to create Google Sheet: %v", err))
+	}
+
+	if backfillErr := h.backfillResponsesToSheet(c, id, existingForm, spreadsheetID); backfillErr != nil {
+		return backfillErr
+	}
+
+	form, err := h.service.LinkGoogleSheet(c.Request().Context(), id, spreadsheetID, title, true)
+	if err != nil {
+		return shared.RespondError(c, http.StatusInternalServerError, "Failed to link Google Sheet")
+	}
+
+	return c.JSON(http.StatusCreated, map[string]any{
+		"form":            formToResponse(form),
+		"spreadsheet_id":  spreadsheetID,
+		"spreadsheet_url": "https://docs.google.com/spreadsheets/d/" + spreadsheetID,
+	})
+}
+
+func prepareGoogleSheetRequest(c *echo.Context, existingForm *Form) (title string, headers []string, err error) {
 	var req CreateGoogleSheetRequest
-	if err := c.Bind(&req); err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
+	if bindErr := c.Bind(&req); bindErr != nil {
+		return "", nil, shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
 	}
 
-	title := req.Title
+	title = req.Title
 	if title == "" {
 		title = existingForm.Name + " - Responses"
 	}
 
 	fields, _ := google.ParseFormSchema(existingForm.Schema)
-	headers := google.ExtractHeaders(fields)
+	headers = google.ExtractHeaders(fields)
+	return title, headers, nil
+}
 
-	currentUser, err := h.userService.GetUserByID(c.Request().Context(), authUserID)
+func (h *Handler) getUserSheetsService(c *echo.Context, userID int32) (*google.SheetsService, error) {
+	currentUser, err := h.userService.GetUserByID(c.Request().Context(), userID)
 	if err != nil {
-		return shared.RespondError(c, http.StatusInternalServerError, "Failed to get user")
+		return nil, shared.RespondError(c, http.StatusInternalServerError, "Failed to get user")
 	}
 
 	if currentUser.GoogleAccessToken == nil || *currentUser.GoogleAccessToken == "" {
-		return shared.RespondError(c, http.StatusUnauthorized, "Google OAuth is required to link a sheet. Please login with Google.")
+		return nil, shared.RespondError(c, http.StatusUnauthorized, "Google OAuth is required to link a sheet. Please login with Google.")
 	}
 
 	expiry := time.Now()
@@ -368,43 +404,38 @@ func (h *Handler) CreateAndLinkGoogleSheet(c *echo.Context) error {
 	)
 	if err != nil {
 		log.Printf("Failed to create user token sheets service: %v", err)
-		return shared.RespondError(c, http.StatusUnauthorized, "Google OAuth is required to link a sheet. Please login with Google again.")
+		return nil, shared.RespondError(c, http.StatusUnauthorized, "Google OAuth is required to link a sheet. Please login with Google again.")
 	}
 
-	log.Printf("Using user's OAuth token for Google Sheets")
+	return sheetsService, nil
+}
 
-	spreadsheetID, err := sheetsService.CreateSpreadsheet(c.Request().Context(), title, headers)
-	if err != nil {
-		log.Printf("Failed to create Google Sheet for form %d: %v", id, err)
-		return shared.RespondError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to create Google Sheet: %v", err))
+func (h *Handler) backfillResponsesToSheet(c *echo.Context, formID int32, existingForm *Form, spreadsheetID string) error {
+	if h.responseSvc == nil {
+		return nil
 	}
 
-	if h.responseSvc != nil {
-		if err := h.responseSvc.BackfillFormResponsesToSheet(c.Request().Context(), int32(id), existingForm.Schema, spreadsheetID, existingForm.UserID); err != nil {
-			log.Printf("Failed to backfill responses for form %d to new sheet %s: %v", id, spreadsheetID, err)
-			return shared.RespondError(c, http.StatusInternalServerError, "Failed to sync existing responses to Google Sheet")
-		}
+	if backfillErr := h.responseSvc.BackfillFormResponsesToSheet(
+		c.Request().Context(),
+		formID,
+		existingForm.Schema,
+		spreadsheetID,
+		existingForm.UserID,
+	); backfillErr != nil {
+		log.Printf("Failed to backfill responses for form %d to new sheet %s: %v", formID, spreadsheetID, backfillErr)
+		return shared.RespondError(c, http.StatusInternalServerError, "Failed to sync existing responses to Google Sheet")
 	}
 
-	form, err := h.service.LinkGoogleSheet(c.Request().Context(), int32(id), spreadsheetID, title, true)
-	if err != nil {
-		return shared.RespondError(c, http.StatusInternalServerError, "Failed to link Google Sheet")
-	}
-
-	return c.JSON(http.StatusCreated, map[string]interface{}{
-		"form":            formToResponse(form),
-		"spreadsheet_id":  spreadsheetID,
-		"spreadsheet_url": "https://docs.google.com/spreadsheets/d/" + spreadsheetID,
-	})
+	return nil
 }
 
 func (h *Handler) UnlinkGoogleSheet(c *echo.Context) error {
-	id, _, err := h.getAuthorizedForm(c)
+	id, err := h.getAuthorizedForm(c)
 	if err != nil {
 		return err
 	}
 
-	form, err := h.service.UnlinkGoogleSheet(c.Request().Context(), int32(id))
+	form, err := h.service.UnlinkGoogleSheet(c.Request().Context(), id)
 	if err != nil {
 		return shared.RespondError(c, http.StatusInternalServerError, "Failed to unlink Google Sheet")
 	}
