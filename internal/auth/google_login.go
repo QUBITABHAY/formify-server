@@ -66,8 +66,8 @@ func (h *Handler) getUserOrCreateFromOAuth(c *echo.Context, gothUser goth.User) 
 	}
 
 	if existingUser != nil {
-		if err := h.updateUserOAuthTokens(c, existingUser.ID, gothUser); err != nil {
-			return nil, err
+		if tokenErr := h.updateUserOAuthTokens(c, existingUser.ID, gothUser); tokenErr != nil {
+			return nil, tokenErr
 		}
 		return existingUser, nil
 	}

@@ -330,7 +330,7 @@ func (h *Handler) CreateAndLinkGoogleSheet(c *echo.Context) error {
 	}
 
 	var req CreateGoogleSheetRequest
-	if err := c.Bind(&req); err != nil {
+	if bindErr := c.Bind(&req); bindErr != nil {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
 	}
 
@@ -380,8 +380,14 @@ func (h *Handler) CreateAndLinkGoogleSheet(c *echo.Context) error {
 	}
 
 	if h.responseSvc != nil {
-		if err := h.responseSvc.BackfillFormResponsesToSheet(c.Request().Context(), int32(id), existingForm.Schema, spreadsheetID, existingForm.UserID); err != nil {
-			log.Printf("Failed to backfill responses for form %d to new sheet %s: %v", id, spreadsheetID, err)
+		if backfillErr := h.responseSvc.BackfillFormResponsesToSheet(
+			c.Request().Context(),
+			int32(id),
+			existingForm.Schema,
+			spreadsheetID,
+			existingForm.UserID,
+		); backfillErr != nil {
+			log.Printf("Failed to backfill responses for form %d to new sheet %s: %v", id, spreadsheetID, backfillErr)
 			return shared.RespondError(c, http.StatusInternalServerError, "Failed to sync existing responses to Google Sheet")
 		}
 	}

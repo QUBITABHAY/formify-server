@@ -19,15 +19,6 @@ const maxFileSizeBytes = 10 * 1024 * 1024
 const fileBufSize = 512
 const uploadIDLength = 16
 
-var allowedMIMETypes = map[string]bool{
-	"image/jpeg":      true,
-	"image/png":       true,
-	"image/gif":       true,
-	"image/webp":      true,
-	"application/pdf": true,
-	"application/zip": true,
-}
-
 type ValidationError struct {
 	Message string
 }
@@ -65,10 +56,10 @@ func (s *Service) UploadFile(ctx context.Context, formID string, file multipart.
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 	contentType := http.DetectContentType(buf[:n])
-	if _, err := file.Seek(0, 0); err != nil {
-		return nil, fmt.Errorf("failed to seek file: %w", err)
+	if _, seekErr := file.Seek(0, 0); seekErr != nil {
+		return nil, fmt.Errorf("failed to seek file: %w", seekErr)
 	}
-	if !allowedMIMETypes[contentType] {
+	if !isAllowedMIMEType(contentType) {
 		return nil, &ValidationError{Message: fmt.Sprintf("file type %q is not allowed", contentType)}
 	}
 
@@ -116,4 +107,13 @@ func randomHex(n int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+func isAllowedMIMEType(contentType string) bool {
+	switch contentType {
+	case "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", "application/zip":
+		return true
+	default:
+		return false
+	}
 }

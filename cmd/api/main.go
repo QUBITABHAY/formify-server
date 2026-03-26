@@ -25,7 +25,11 @@ func main() {
 	if err := logger.InitFromEnv(); err != nil {
 		panic(err)
 	}
-	defer logger.Close()
+	defer func() {
+		if err := logger.Close(); err != nil {
+			logger.GetLogger().Error("Failed to close logger", logger.ToField("error", err))
+		}
+	}()
 
 	log := logger.GetLogger()
 

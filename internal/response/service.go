@@ -100,13 +100,13 @@ func (s *Service) syncResponseToSheet(ctx context.Context, response *Response, s
 	fields, err := google.ParseFormSchema(schema)
 	if err != nil {
 		logger.GetLogger().Warn("Failed to parse form schema for sheets sync", zap.Error(err))
-		row, _, err := google.ResponseToRowWithoutSchema(response.ID, response.CreatedAt, response.Data)
-		if err != nil {
-			logger.GetLogger().Warn("Failed to convert response to row", zap.Error(err))
+		row, _, rowErr := google.ResponseToRowWithoutSchema(response.ID, response.CreatedAt, response.Data)
+		if rowErr != nil {
+			logger.GetLogger().Warn("Failed to convert response to row", zap.Error(rowErr))
 			return
 		}
-		if err := sheetsService.AppendRow(ctx, sheetID, row); err != nil {
-			logger.GetLogger().Warn("Failed to append row to sheet", zap.Error(err))
+		if appendErr := sheetsService.AppendRow(ctx, sheetID, row); appendErr != nil {
+			logger.GetLogger().Warn("Failed to append row to sheet", zap.Error(appendErr))
 		}
 		return
 	}

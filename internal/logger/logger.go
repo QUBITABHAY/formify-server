@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	Logger *zap.Logger
-	Sugar  *zap.SugaredLogger
+	Logger *zap.Logger        //nolint:gochecknoglobals // Package-level logger singleton used across the app.
+	Sugar  *zap.SugaredLogger //nolint:gochecknoglobals // Package-level sugared logger singleton used across the app.
 )
 
 const keyValuePairSize = 2
