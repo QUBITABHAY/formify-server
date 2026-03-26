@@ -41,7 +41,15 @@ func main() {
 		sugar.Warnf(".env file not loaded: %v", err)
 	}
 
-	opts := parseFlags()
+	up := flag.Bool("up", false, "Run all pending migrations")
+	down := flag.Bool("down", false, "Rollback the last migration")
+	reset := flag.Bool("reset", false, "Rollback all migrations")
+	version := flag.Bool("version", false, "Show current migration version")
+	steps := flag.Int("steps", 0, "Number of migrations to run (positive=up, negative=down)")
+	force := flag.Int("force", -1, "Force set version (use with caution)")
+	flag.Parse()
+
+	opts := parseFlags(up, down, reset, version, steps, force)
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
@@ -67,15 +75,7 @@ func main() {
 	runMigrations(m, opts, zapLog, sugar)
 }
 
-func parseFlags() migrateOptions {
-	up := flag.Bool("up", false, "Run all pending migrations")
-	down := flag.Bool("down", false, "Rollback the last migration")
-	reset := flag.Bool("reset", false, "Rollback all migrations")
-	version := flag.Bool("version", false, "Show current migration version")
-	steps := flag.Int("steps", 0, "Number of migrations to run (positive=up, negative=down)")
-	force := flag.Int("force", -1, "Force set version (use with caution)")
-	flag.Parse()
-
+func parseFlags(up, down, reset, version *bool, steps, force *int) migrateOptions {
 	return migrateOptions{
 		up:      *up,
 		down:    *down,

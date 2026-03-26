@@ -3,7 +3,7 @@ package logger
 
 import (
 	"errors"
-	"log"
+	"fmt"
 	"os"
 
 	"go.uber.org/zap"
@@ -39,7 +39,7 @@ func Init(environment string) error {
 	var err error
 	Logger, err = config.Build()
 	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
+		return fmt.Errorf("failed to initialize logger: %w", err)
 	}
 
 	Sugar = Logger.Sugar()
@@ -84,11 +84,11 @@ func InitFromEnv() error {
 	return Init(env)
 }
 
-func ToField(key string, value interface{}) zap.Field {
+func ToField(key string, value any) zap.Field {
 	return zap.Any(key, value)
 }
 
-func ToFields(values ...interface{}) []zap.Field {
+func ToFields(values ...any) []zap.Field {
 	if len(values)%keyValuePairSize != 0 {
 		return []zap.Field{zap.Error(errOddArguments)}
 	}

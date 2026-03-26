@@ -28,6 +28,7 @@ func NewHandler(service *Service, userService *user.Service, frontendURL string,
 	}
 }
 
+//revive:disable-next-line:exported
 type AuthResponse struct {
 	User UserData `json:"user"`
 }

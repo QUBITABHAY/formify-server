@@ -12,6 +12,7 @@ type Service struct {
 	responseRepo response.Repository
 }
 
+//revive:disable-next-line:exported
 type FormGetterAdapter struct {
 	service *Service
 }

@@ -30,7 +30,7 @@ func (r *repository) Create(ctx context.Context, user *User) error {
 	if err != nil {
 		return err
 	}
-	r.mapDBUserToModel(dbUser, user)
+	r.mapDBUserToModel(&dbUser, user)
 	return nil
 }
 
@@ -56,7 +56,7 @@ func (r *repository) CreateOAuth(ctx context.Context, user *User) error {
 	if err != nil {
 		return err
 	}
-	r.mapDBUserToModel(dbUser, user)
+	r.mapDBUserToModel(&dbUser, user)
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (r *repository) GetByID(ctx context.Context, id int32) (*User, error) {
 		return nil, err
 	}
 	user := &User{}
-	r.mapDBUserToModel(dbUser, user)
+	r.mapDBUserToModel(&dbUser, user)
 	return user, nil
 }
 
@@ -82,7 +82,7 @@ func (r *repository) GetByEmail(ctx context.Context, email string) (*User, error
 		return nil, err
 	}
 	user := &User{}
-	r.mapDBUserToModel(dbUser, user)
+	r.mapDBUserToModel(&dbUser, user)
 	return user, nil
 }
 
@@ -98,7 +98,7 @@ func (r *repository) GetByOAuthID(ctx context.Context, provider, oauthID string)
 		return nil, err
 	}
 	user := &User{}
-	r.mapDBUserToModel(dbUser, user)
+	r.mapDBUserToModel(&dbUser, user)
 	return user, nil
 }
 
@@ -111,7 +111,7 @@ func (r *repository) Update(ctx context.Context, user *User) error {
 	if err != nil {
 		return err
 	}
-	r.mapDBUserToModel(dbUser, user)
+	r.mapDBUserToModel(&dbUser, user)
 	return nil
 }
 
@@ -132,7 +132,7 @@ func (r *repository) UpdateOAuthTokens(ctx context.Context, userID int32, access
 	return err
 }
 
-func (r *repository) mapDBUserToModel(dbUser db.User, user *User) {
+func (*repository) mapDBUserToModel(dbUser *db.User, user *User) {
 	user.ID = dbUser.ID
 	user.Name = dbUser.Name
 	user.Email = dbUser.Email

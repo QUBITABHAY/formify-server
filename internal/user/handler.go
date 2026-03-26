@@ -24,6 +24,7 @@ type CreateUserRequest struct {
 	Password string `json:"password"`
 }
 
+//revive:disable-next-line:exported
 type UserResponse struct {
 	ID    int32  `json:"id"`
 	Name  string `json:"name"`

@@ -99,7 +99,13 @@ func (s *Service) syncResponseToSheetIfEnabled(ctx context.Context, response *Re
 	s.syncResponseToSheet(ctx, response, schema, *sheetID, sheetsService)
 }
 
-func (s *Service) syncResponseToSheet(ctx context.Context, response *Response, schema []byte, sheetID string, sheetsService *google.SheetsService) {
+func (*Service) syncResponseToSheet(
+	ctx context.Context,
+	response *Response,
+	schema []byte,
+	sheetID string,
+	sheetsService *google.SheetsService,
+) {
 	fields, err := google.ParseFormSchema(schema)
 	if err != nil {
 		logger.GetLogger().Warn("Failed to parse form schema for sheets sync", zap.Error(err))
@@ -189,7 +195,7 @@ func (s *Service) BackfillFormResponsesToSheet(ctx context.Context, formID int32
 	return s.appendMissingResponsesToSheet(ctx, sheetID, responses, existingIDs, fields, schemaErr, sheetsService)
 }
 
-func (s *Service) appendMissingResponsesToSheet(
+func (*Service) appendMissingResponsesToSheet(
 	ctx context.Context,
 	sheetID string,
 	responses []*Response,
@@ -219,7 +225,7 @@ func (s *Service) appendMissingResponsesToSheet(
 	return nil
 }
 
-func buildBackfillRow(resp *Response, fields []google.FormField, schemaErr error) ([]interface{}, error) {
+func buildBackfillRow(resp *Response, fields []google.FormField, schemaErr error) ([]any, error) {
 	if schemaErr == nil {
 		return google.ResponseToRow(resp.ID, resp.CreatedAt, resp.Data, fields)
 	}

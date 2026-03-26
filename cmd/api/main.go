@@ -5,7 +5,6 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
-	"go.uber.org/zap"
 
 	"formify/server/internal/auth"
 	"formify/server/internal/config"
@@ -43,7 +42,10 @@ func main() {
 
 	e := echo.New()
 	setupMiddleware(e, cfg)
-	setupRoutes(e, cfg, log)
+	if err := setupRoutes(e, cfg); err != nil {
+		log.Error("Failed to setup routes", logger.ToField("error", err))
+		return
+	}
 
 	log.Info("Server starting", logger.ToField("port", cfg.Port))
 	if err := e.Start(":" + cfg.Port); err != nil {
@@ -62,7 +64,7 @@ func setupMiddleware(e *echo.Echo, cfg *config.Config) {
 	}))
 }
 
-func setupRoutes(e *echo.Echo, cfg *config.Config, log *zap.Logger) {
+func setupRoutes(e *echo.Echo, cfg *config.Config) error {
 	queries := db.New(database.DBPool)
 
 	userRepo := user.NewRepository(queries)
@@ -84,7 +86,7 @@ func setupRoutes(e *echo.Echo, cfg *config.Config, log *zap.Logger) {
 
 	uploadService, err := fileupload.NewService(cfg)
 	if err != nil {
-		log.Fatal("Failed to initialize Cloudinary", logger.ToField("error", err))
+		return err
 	}
 	uploadHandler := fileupload.NewHandler(uploadService, formService)
 
@@ -133,4 +135,6 @@ func setupRoutes(e *echo.Echo, cfg *config.Config, log *zap.Logger) {
 	protected.GET("/forms/:id/responses", responseHandler.GetFormResponses)
 	protected.GET("/responses/:id", responseHandler.GetResponse)
 	protected.DELETE("/responses/:id", responseHandler.DeleteResponse)
+
+	return nil
 }

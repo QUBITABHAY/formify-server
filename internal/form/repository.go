@@ -34,7 +34,7 @@ func (r *repository) Create(ctx context.Context, form *Form) error {
 	if err != nil {
 		return err
 	}
-	r.mapDBFormToModel(dbForm, form)
+	r.mapDBFormToModel(&dbForm, form)
 	return nil
 }
 
@@ -47,7 +47,7 @@ func (r *repository) GetByID(ctx context.Context, id int32) (*Form, error) {
 		return nil, err
 	}
 	form := &Form{}
-	r.mapDBFormToModel(dbForm, form)
+	r.mapDBFormToModel(&dbForm, form)
 	return form, nil
 }
 
@@ -60,7 +60,7 @@ func (r *repository) GetByShareURL(ctx context.Context, shareURL string) (*Form,
 		return nil, err
 	}
 	form := &Form{}
-	r.mapDBFormToModel(dbForm, form)
+	r.mapDBFormToModel(&dbForm, form)
 	return form, nil
 }
 
@@ -91,7 +91,7 @@ func (r *repository) Update(ctx context.Context, form *Form) error {
 	if err != nil {
 		return err
 	}
-	r.mapDBFormToModel(dbForm, form)
+	r.mapDBFormToModel(&dbForm, form)
 	return nil
 }
 
@@ -104,7 +104,7 @@ func (r *repository) UpdateStatus(ctx context.Context, id int32, status Status) 
 		return nil, err
 	}
 	form := &Form{}
-	r.mapDBFormToModel(dbForm, form)
+	r.mapDBFormToModel(&dbForm, form)
 	return form, nil
 }
 
@@ -117,7 +117,7 @@ func (r *repository) UpdateShareURL(ctx context.Context, id int32, shareURL stri
 		return nil, err
 	}
 	form := &Form{}
-	r.mapDBFormToModel(dbForm, form)
+	r.mapDBFormToModel(&dbForm, form)
 	return form, nil
 }
 
@@ -136,7 +136,7 @@ func (r *repository) LinkGoogleSheet(ctx context.Context, id int32, sheetID, she
 		return nil, err
 	}
 	form := &Form{}
-	r.mapDBFormToModel(dbForm, form)
+	r.mapDBFormToModel(&dbForm, form)
 	return form, nil
 }
 
@@ -146,11 +146,11 @@ func (r *repository) UnlinkGoogleSheet(ctx context.Context, id int32) (*Form, er
 		return nil, err
 	}
 	form := &Form{}
-	r.mapDBFormToModel(dbForm, form)
+	r.mapDBFormToModel(&dbForm, form)
 	return form, nil
 }
 
-func (r *repository) mapDBFormToModel(dbForm db.Form, form *Form) {
+func (*repository) mapDBFormToModel(dbForm *db.Form, form *Form) {
 	form.ID = dbForm.ID
 	form.FormID = shared.PgtypeTextToString(dbForm.FormID)
 	form.Name = dbForm.Name
@@ -174,7 +174,7 @@ func (r *repository) mapDBFormsToModel(dbForms []db.Form) []*Form {
 	forms := make([]*Form, len(dbForms))
 	for i := range dbForms {
 		forms[i] = &Form{}
-		r.mapDBFormToModel(dbForms[i], forms[i])
+		r.mapDBFormToModel(&dbForms[i], forms[i])
 	}
 	return forms
 }

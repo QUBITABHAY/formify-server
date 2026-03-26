@@ -29,7 +29,7 @@ func (r *repository) Create(ctx context.Context, response *Response) error {
 	if err != nil {
 		return err
 	}
-	r.mapDBResponseToModel(dbResponse, response)
+	r.mapDBResponseToModel(&dbResponse, response)
 	return nil
 }
 
@@ -42,7 +42,7 @@ func (r *repository) GetByID(ctx context.Context, id int32) (*Response, error) {
 		return nil, err
 	}
 	response := &Response{}
-	r.mapDBResponseToModel(dbResponse, response)
+	r.mapDBResponseToModel(&dbResponse, response)
 	return response, nil
 }
 
@@ -74,7 +74,7 @@ func (r *repository) DeleteByFormID(ctx context.Context, formID int32) error {
 	return r.queries.DeleteResponsesByFormID(ctx, formID)
 }
 
-func (r *repository) mapDBResponseToModel(dbResponse db.Response, response *Response) {
+func (*repository) mapDBResponseToModel(dbResponse *db.Response, response *Response) {
 	response.ID = dbResponse.ID
 	response.FormID = dbResponse.FormID
 	response.Data = dbResponse.Data
@@ -84,9 +84,9 @@ func (r *repository) mapDBResponseToModel(dbResponse db.Response, response *Resp
 
 func (r *repository) mapDBResponsesToModel(dbResponses []db.Response) []*Response {
 	responses := make([]*Response, len(dbResponses))
-	for i, dbResponse := range dbResponses {
+	for i := range dbResponses {
 		responses[i] = &Response{}
-		r.mapDBResponseToModel(dbResponse, responses[i])
+		r.mapDBResponseToModel(&dbResponses[i], responses[i])
 	}
 	return responses
 }

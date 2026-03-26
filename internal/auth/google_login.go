@@ -16,7 +16,7 @@ import (
 
 const googleProvider = "google"
 
-func (h *Handler) GoogleLogin(c *echo.Context) error {
+func (*Handler) GoogleLogin(c *echo.Context) error {
 	r := c.Request()
 	w := c.Response()
 

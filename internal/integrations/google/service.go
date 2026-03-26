@@ -106,13 +106,13 @@ func (s *SheetsService) CreateSpreadsheet(ctx context.Context, title string, hea
 	}
 
 	if len(headers) > 0 {
-		headerRow := make([]interface{}, len(headers))
+		headerRow := make([]any, len(headers))
 		for i, h := range headers {
 			headerRow[i] = h
 		}
 
 		valueRange := &sheets.ValueRange{
-			Values: [][]interface{}{headerRow},
+			Values: [][]any{headerRow},
 		}
 
 		_, err = s.service.Spreadsheets.Values.Update(
@@ -128,9 +128,9 @@ func (s *SheetsService) CreateSpreadsheet(ctx context.Context, title string, hea
 	return created.SpreadsheetId, nil
 }
 
-func (s *SheetsService) AppendRow(ctx context.Context, spreadsheetID string, values []interface{}) error {
+func (s *SheetsService) AppendRow(ctx context.Context, spreadsheetID string, values []any) error {
 	valueRange := &sheets.ValueRange{
-		Values: [][]interface{}{values},
+		Values: [][]any{values},
 	}
 
 	_, err := s.service.Spreadsheets.Values.Append(
@@ -234,7 +234,7 @@ func (s *SheetsService) DeleteRowBySubmissionID(ctx context.Context, spreadsheet
 	return nil
 }
 
-func findTargetRow(values [][]interface{}, target string) int {
+func findTargetRow(values [][]any, target string) int {
 	for i, row := range values {
 		rowNumber := i + 1
 		if rowNumber == 1 || len(row) == 0 {

@@ -49,6 +49,7 @@ type UpdateFormRequest struct {
 	Settings    json.RawMessage `json:"settings,omitempty"`
 }
 
+//revive:disable-next-line:exported
 type FormResponse struct {
 	ID                  int32           `json:"id"`
 	Name                string          `json:"name"`
@@ -353,7 +354,7 @@ func (h *Handler) CreateAndLinkGoogleSheet(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusInternalServerError, "Failed to link Google Sheet")
 	}
 
-	return c.JSON(http.StatusCreated, map[string]interface{}{
+	return c.JSON(http.StatusCreated, map[string]any{
 		"form":            formToResponse(form),
 		"spreadsheet_id":  spreadsheetID,
 		"spreadsheet_url": "https://docs.google.com/spreadsheets/d/" + spreadsheetID,

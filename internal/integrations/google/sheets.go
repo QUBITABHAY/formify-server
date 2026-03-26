@@ -74,7 +74,7 @@ func parseFieldsObject(schemaJSON []byte) ([]FormField, error) {
 }
 
 func parseRawObjects(schemaJSON []byte) ([]FormField, error) {
-	var rawSchema []map[string]interface{}
+	var rawSchema []map[string]any
 	if err := json.Unmarshal(schemaJSON, &rawSchema); err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func parseRawObjects(schemaJSON []byte) ([]FormField, error) {
 	return fields, nil
 }
 
-func extractFieldFromRaw(field map[string]interface{}) FormField {
+func extractFieldFromRaw(field map[string]any) FormField {
 	log.Printf("  Raw field: %+v", field)
 	f := FormField{}
 
@@ -112,7 +112,7 @@ func extractFieldFromRaw(field map[string]interface{}) FormField {
 	return f
 }
 
-func extractStringField(field map[string]interface{}, keys []string) string {
+func extractStringField(field map[string]any, keys []string) string {
 	for _, key := range keys {
 		if val, ok := field[key].(string); ok && val != "" {
 			return val
@@ -121,7 +121,7 @@ func extractStringField(field map[string]interface{}, keys []string) string {
 	return ""
 }
 
-func extractLabelFromRaw(field map[string]interface{}) string {
+func extractLabelFromRaw(field map[string]any) string {
 	return extractStringField(field, []string{"label", "title", "text", "name", "placeholder"})
 }
 
@@ -154,19 +154,19 @@ func ExtractHeaders(fields []FormField) []string {
 	return headers
 }
 
-func ResponseToRow(responseID int32, submittedAt time.Time, responseData []byte, fields []FormField) ([]interface{}, error) {
-	var data map[string]interface{}
+func ResponseToRow(responseID int32, submittedAt time.Time, responseData []byte, fields []FormField) ([]any, error) {
+	var data map[string]any
 	if err := json.Unmarshal(responseData, &data); err != nil {
 		return nil, fmt.Errorf("failed to parse response data: %w", err)
 	}
 
-	row := []interface{}{
+	row := []any{
 		fmt.Sprintf("%d", responseID),
 		submittedAt.Format(time.RFC3339),
 	}
 
 	for _, field := range fields {
-		var value interface{}
+		var value any
 		var found bool
 
 		if field.ID != "" {
@@ -191,8 +191,8 @@ func ResponseToRow(responseID int32, submittedAt time.Time, responseData []byte,
 	return row, nil
 }
 
-func ResponseToRowWithoutSchema(responseID int32, submittedAt time.Time, responseData []byte) ([]interface{}, []string, error) {
-	var data map[string]interface{}
+func ResponseToRowWithoutSchema(responseID int32, submittedAt time.Time, responseData []byte) (row []any, headers []string, err error) {
+	var data map[string]any
 	if err := json.Unmarshal(responseData, &data); err != nil {
 		return nil, nil, fmt.Errorf("failed to parse response data: %w", err)
 	}
@@ -203,11 +203,11 @@ func ResponseToRowWithoutSchema(responseID int32, submittedAt time.Time, respons
 	}
 	sort.Strings(keys)
 
-	headers := make([]string, 0, fixedResponseHeaders+len(keys))
+	headers = make([]string, 0, fixedResponseHeaders+len(keys))
 	headers = append(headers, "Submission ID", "Submitted At")
 	headers = append(headers, keys...)
 
-	row := []interface{}{
+	row = []any{
 		fmt.Sprintf("%d", responseID),
 		submittedAt.Format(time.RFC3339),
 	}
@@ -219,7 +219,7 @@ func ResponseToRowWithoutSchema(responseID int32, submittedAt time.Time, respons
 	return row, headers, nil
 }
 
-func formatValue(value interface{}) string {
+func formatValue(value any) string {
 	switch v := value.(type) {
 	case nil:
 		return ""
@@ -232,7 +232,7 @@ func formatValue(value interface{}) string {
 			return "Yes"
 		}
 		return "No"
-	case []interface{}:
+	case []any:
 		result := ""
 		for i, item := range v {
 			if i > 0 {
