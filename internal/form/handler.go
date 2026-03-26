@@ -155,7 +155,7 @@ func (h *Handler) GetUserForms(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid user ID")
 	}
 
-	if int32(userID) != authUserID {
+	if userID != int64(authUserID) {
 		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
@@ -360,19 +360,19 @@ func (h *Handler) CreateAndLinkGoogleSheet(c *echo.Context) error {
 	})
 }
 
-func prepareGoogleSheetRequest(c *echo.Context, existingForm *Form) (string, []string, error) {
+func prepareGoogleSheetRequest(c *echo.Context, existingForm *Form) (title string, headers []string, err error) {
 	var req CreateGoogleSheetRequest
 	if bindErr := c.Bind(&req); bindErr != nil {
 		return "", nil, shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
 	}
 
-	title := req.Title
+	title = req.Title
 	if title == "" {
 		title = existingForm.Name + " - Responses"
 	}
 
 	fields, _ := google.ParseFormSchema(existingForm.Schema)
-	headers := google.ExtractHeaders(fields)
+	headers = google.ExtractHeaders(fields)
 	return title, headers, nil
 }
 

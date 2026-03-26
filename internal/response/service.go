@@ -133,7 +133,7 @@ func (s *Service) GetFormResponses(ctx context.Context, formID int32) ([]*Respon
 	return s.responseRepo.GetByFormID(ctx, formID)
 }
 
-func (s *Service) GetFormResponsesPaginated(ctx context.Context, formID int32, limit, offset int32) ([]*Response, error) {
+func (s *Service) GetFormResponsesPaginated(ctx context.Context, formID, limit, offset int32) ([]*Response, error) {
 	return s.responseRepo.GetByFormIDPaginated(ctx, formID, limit, offset)
 }
 

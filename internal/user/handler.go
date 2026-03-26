@@ -68,7 +68,7 @@ func (h *Handler) GetUser(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid user ID")
 	}
 
-	if int32(id) != authUserID {
+	if id != int64(authUserID) {
 		return shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 

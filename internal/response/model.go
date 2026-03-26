@@ -18,7 +18,7 @@ type Repository interface {
 	Create(ctx context.Context, response *Response) error
 	GetByID(ctx context.Context, id int32) (*Response, error)
 	GetByFormID(ctx context.Context, formID int32) ([]*Response, error)
-	GetByFormIDPaginated(ctx context.Context, formID int32, limit, offset int32) ([]*Response, error)
+	GetByFormIDPaginated(ctx context.Context, formID, limit, offset int32) ([]*Response, error)
 	Delete(ctx context.Context, id int32) error
 	DeleteByFormID(ctx context.Context, formID int32) error
 }

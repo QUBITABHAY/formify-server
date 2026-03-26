@@ -41,7 +41,7 @@ func (h *Handler) GoogleCallback(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusUnauthorized, fmt.Sprintf("OAuth authentication failed: %v", err))
 	}
 
-	u, err := h.getUserOrCreateFromOAuth(c, gothUser)
+	u, err := h.getUserOrCreateFromOAuth(c, &gothUser)
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (h *Handler) GoogleCallback(c *echo.Context) error {
 	return c.Redirect(http.StatusTemporaryRedirect, h.frontendURL+"/auth/callback")
 }
 
-func (h *Handler) getUserOrCreateFromOAuth(c *echo.Context, gothUser goth.User) (*user.User, error) {
+func (h *Handler) getUserOrCreateFromOAuth(c *echo.Context, gothUser *goth.User) (*user.User, error) {
 	ctx := c.Request().Context()
 	provider := googleProvider
 
@@ -85,7 +85,7 @@ func (h *Handler) getUserOrCreateFromOAuth(c *echo.Context, gothUser goth.User) 
 	return h.createNewOAuthUser(c, gothUser)
 }
 
-func (h *Handler) updateUserOAuthTokens(c *echo.Context, userID int32, gothUser goth.User) error {
+func (h *Handler) updateUserOAuthTokens(c *echo.Context, userID int32, gothUser *goth.User) error {
 	if gothUser.AccessToken == "" {
 		return nil
 	}
@@ -97,7 +97,7 @@ func (h *Handler) updateUserOAuthTokens(c *echo.Context, userID int32, gothUser 
 	return nil
 }
 
-func (h *Handler) linkExistingUserToOAuth(c *echo.Context, existingUser *user.User, gothUser goth.User) (*user.User, error) {
+func (h *Handler) linkExistingUserToOAuth(c *echo.Context, existingUser *user.User, gothUser *goth.User) (*user.User, error) {
 	ctx := c.Request().Context()
 	provider := googleProvider
 
@@ -116,7 +116,7 @@ func (h *Handler) linkExistingUserToOAuth(c *echo.Context, existingUser *user.Us
 	return existingUser, nil
 }
 
-func (h *Handler) createNewOAuthUser(c *echo.Context, gothUser goth.User) (*user.User, error) {
+func (h *Handler) createNewOAuthUser(c *echo.Context, gothUser *goth.User) (*user.User, error) {
 	ctx := c.Request().Context()
 	provider := googleProvider
 

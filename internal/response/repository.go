@@ -54,7 +54,7 @@ func (r *repository) GetByFormID(ctx context.Context, formID int32) ([]*Response
 	return r.mapDBResponsesToModel(dbResponses), nil
 }
 
-func (r *repository) GetByFormIDPaginated(ctx context.Context, formID int32, limit, offset int32) ([]*Response, error) {
+func (r *repository) GetByFormIDPaginated(ctx context.Context, formID, limit, offset int32) ([]*Response, error) {
 	dbResponses, err := r.queries.ListResponsesByFormIDPaginated(ctx, db.ListResponsesByFormIDPaginatedParams{
 		FormID: formID,
 		Limit:  limit,

@@ -36,7 +36,8 @@ func main() {
 	cfg := config.Load()
 
 	if err := database.InitDB(cfg.DatabaseURL); err != nil {
-		log.Fatal("Failed to initialize database", logger.ToField("error", err))
+		log.Error("Failed to initialize database", logger.ToField("error", err))
+		return
 	}
 	defer database.CloseDB()
 

@@ -172,9 +172,9 @@ func (r *repository) mapDBFormToModel(dbForm db.Form, form *Form) {
 
 func (r *repository) mapDBFormsToModel(dbForms []db.Form) []*Form {
 	forms := make([]*Form, len(dbForms))
-	for i, dbForm := range dbForms {
+	for i := range dbForms {
 		forms[i] = &Form{}
-		r.mapDBFormToModel(dbForm, forms[i])
+		r.mapDBFormToModel(dbForms[i], forms[i])
 	}
 	return forms
 }
