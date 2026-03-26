@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"formify/server/internal/db"
 	"formify/server/internal/shared"
-
-	"github.com/jackc/pgx/v5"
 )
 
 var ErrUserNotFound = errors.New("user not found")

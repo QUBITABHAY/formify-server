@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/labstack/echo/v5"
+
 	"formify/server/internal/integrations/google"
 	responsepkg "formify/server/internal/response"
 	"formify/server/internal/shared"
 	"formify/server/internal/user"
-
-	"github.com/labstack/echo/v5"
 )
 
 type Handler struct {
@@ -234,30 +234,30 @@ func (h *Handler) UpdateForm(c *echo.Context) error {
 	return c.JSON(http.StatusOK, formToResponse(existingForm))
 }
 
-func (h *Handler) getAuthorizedForm(c *echo.Context) (int32, *Form, error) {
+func (h *Handler) getAuthorizedForm(c *echo.Context) (int32, error) {
 	authUserID, ok := shared.GetAuthUserID(c)
 	if !ok {
-		return 0, nil, shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
+		return 0, shared.RespondError(c, http.StatusUnauthorized, "Unauthorized")
 	}
 
 	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
 	if err != nil {
-		return 0, nil, shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
+		return 0, shared.RespondError(c, http.StatusBadRequest, "Invalid form ID")
 	}
 
 	existingForm, err := h.service.GetFormByID(c.Request().Context(), int32(id))
 	if err != nil {
-		return 0, nil, shared.RespondError(c, http.StatusNotFound, "Form not found")
+		return 0, shared.RespondError(c, http.StatusNotFound, "Form not found")
 	}
 	if existingForm.UserID != authUserID {
-		return 0, nil, shared.RespondError(c, http.StatusForbidden, "Access denied")
+		return 0, shared.RespondError(c, http.StatusForbidden, "Access denied")
 	}
 
-	return int32(id), existingForm, nil
+	return int32(id), nil
 }
 
 func (h *Handler) PublishForm(c *echo.Context) error {
-	id, _, err := h.getAuthorizedForm(c)
+	id, err := h.getAuthorizedForm(c)
 	if err != nil {
 		return err
 	}
@@ -271,7 +271,7 @@ func (h *Handler) PublishForm(c *echo.Context) error {
 }
 
 func (h *Handler) UnpublishForm(c *echo.Context) error {
-	id, _, err := h.getAuthorizedForm(c)
+	id, err := h.getAuthorizedForm(c)
 	if err != nil {
 		return err
 	}
@@ -399,7 +399,7 @@ func (h *Handler) CreateAndLinkGoogleSheet(c *echo.Context) error {
 }
 
 func (h *Handler) UnlinkGoogleSheet(c *echo.Context) error {
-	id, _, err := h.getAuthorizedForm(c)
+	id, err := h.getAuthorizedForm(c)
 	if err != nil {
 		return err
 	}

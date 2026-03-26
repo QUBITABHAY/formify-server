@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/labstack/echo/v5"
+
 	"formify/server/internal/shared"
 	"formify/server/internal/user"
-
-	"github.com/labstack/echo/v5"
 )
 
 const CookieName = "token"

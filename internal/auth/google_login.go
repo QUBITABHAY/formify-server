@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"formify/server/internal/shared"
-	"formify/server/internal/user"
-
 	"github.com/labstack/echo/v5"
 	"github.com/markbates/goth/gothic"
+
+	"formify/server/internal/shared"
+	"formify/server/internal/user"
 )
 
 func (h *Handler) GoogleLogin(c *echo.Context) error {

@@ -13,7 +13,7 @@ type Response struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// Repository defines response data access methods
+// Repository defines response data access methods.
 type Repository interface {
 	Create(ctx context.Context, response *Response) error
 	GetByID(ctx context.Context, id int32) (*Response, error)

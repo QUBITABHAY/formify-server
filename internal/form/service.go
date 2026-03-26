@@ -16,6 +16,8 @@ type FormGetterAdapter struct {
 	service *Service
 }
 
+const shareURLLength = 12
+
 func NewService(formRepo Repository, responseRepo response.Repository) *Service {
 	return &Service{formRepo: formRepo, responseRepo: responseRepo}
 }
@@ -59,7 +61,7 @@ func (s *Service) PublishForm(ctx context.Context, id int32) (*Form, error) {
 		return nil, err
 	}
 	if form.ShareURL == nil {
-		shareURL, err := shared.GenerateShareURL(12)
+		shareURL, err := shared.GenerateShareURL(shareURLLength)
 		if err != nil {
 			return nil, err
 		}

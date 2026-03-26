@@ -7,9 +7,11 @@ import (
 	"github.com/markbates/goth/providers/google"
 )
 
+const sessionMaxAge = 86400 // 1 day in seconds
+
 func InitProviders(googleClientID, googleClientSecret, googleCallbackURL, sessionSecret string) {
 	store := sessions.NewCookieStore([]byte(sessionSecret))
-	store.MaxAge(86400 * 1)
+	store.MaxAge(sessionMaxAge * 1)
 	store.Options.Path = "/"
 	store.Options.HttpOnly = true
 	gothic.Store = store

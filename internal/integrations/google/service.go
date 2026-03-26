@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"formify/server/internal/logger"
-
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
+
+	"formify/server/internal/logger"
 )
 
 type SheetsService struct {

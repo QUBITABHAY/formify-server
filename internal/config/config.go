@@ -3,9 +3,10 @@ package config
 import (
 	"strings"
 
-	"formify/server/internal/logger"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+
+	"formify/server/internal/logger"
 )
 
 type Config struct {

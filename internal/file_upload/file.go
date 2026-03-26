@@ -8,14 +8,16 @@ import (
 	"mime/multipart"
 	"net/http"
 
-	"formify/server/internal/config"
-
 	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
+
+	"formify/server/internal/config"
 )
 
 const maxFileSizeBytes = 10 * 1024 * 1024
+const fileBufSize = 512
+const uploadIDLength = 16
 
 var allowedMIMETypes = map[string]bool{
 	"image/jpeg":      true,
@@ -57,7 +59,7 @@ func (s *Service) UploadFile(ctx context.Context, formID string, file multipart.
 		return nil, &ValidationError{Message: "file exceeds the maximum allowed size of 10 MB"}
 	}
 
-	buf := make([]byte, 512)
+	buf := make([]byte, fileBufSize)
 	n, err := file.Read(buf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
@@ -70,7 +72,7 @@ func (s *Service) UploadFile(ctx context.Context, formID string, file multipart.
 		return nil, &ValidationError{Message: fmt.Sprintf("file type %q is not allowed", contentType)}
 	}
 
-	id, err := randomHex(16)
+	id, err := randomHex(uploadIDLength)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate upload ID: %w", err)
 	}

@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"formify/server/internal/shared"
-
 	"github.com/labstack/echo/v5"
+
+	"formify/server/internal/shared"
 )
 
 type FormChecker interface {

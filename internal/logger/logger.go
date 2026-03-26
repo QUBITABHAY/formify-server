@@ -14,6 +14,8 @@ var (
 	Sugar  *zap.SugaredLogger
 )
 
+const keyValuePairSize = 2
+
 func Init(environment string) error {
 	var config zap.Config
 
@@ -84,12 +86,12 @@ func ToField(key string, value interface{}) zap.Field {
 }
 
 func ToFields(values ...interface{}) []zap.Field {
-	if len(values)%2 != 0 {
+	if len(values)%keyValuePairSize != 0 {
 		return []zap.Field{zap.Error(errors.New("odd number of arguments"))}
 	}
 
-	fields := make([]zap.Field, 0, len(values)/2)
-	for i := 0; i < len(values); i += 2 {
+	fields := make([]zap.Field, 0, len(values)/keyValuePairSize)
+	for i := 0; i < len(values); i += keyValuePairSize {
 		key := values[i].(string)
 		fields = append(fields, zap.Any(key, values[i+1]))
 	}

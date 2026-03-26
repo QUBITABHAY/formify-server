@@ -3,9 +3,9 @@ package shared
 import (
 	"net/http"
 
-	"formify/server/internal/database"
-
 	"github.com/labstack/echo/v5"
+
+	"formify/server/internal/database"
 )
 
 func RespondError(c *echo.Context, status int, message string) error {

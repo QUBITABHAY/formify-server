@@ -3,10 +3,12 @@ package auth
 import (
 	"time"
 
-	"formify/server/internal/user"
-
 	"github.com/golang-jwt/jwt/v5"
+
+	"formify/server/internal/user"
 )
+
+const tokenExpiry = 24 * time.Hour
 
 type Service struct {
 	jwtSecret string
@@ -23,7 +25,7 @@ func (s *Service) GenerateJWT(u *user.User) (string, error) {
 		"user_id": u.ID,
 		"email":   u.Email,
 		"name":    u.Name,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		"exp":     time.Now().Add(tokenExpiry).Unix(),
 		"iat":     time.Now().Unix(),
 	}
 
