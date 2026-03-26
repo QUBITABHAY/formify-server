@@ -2,6 +2,7 @@ package response
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,6 +26,8 @@ type Service struct {
 	formGetter      FormGetter
 	userTokenGetter UserTokenGetter
 }
+
+var errNoSheetsService = errors.New("no sheets service available")
 
 func NewService(
 	responseRepo Repository,
@@ -164,7 +167,7 @@ func (s *Service) BackfillFormResponsesToSheet(ctx context.Context, formID int32
 
 	sheetsService := s.getSheetsServiceForUser(ctx, userID)
 	if sheetsService == nil {
-		return fmt.Errorf("no sheets service available")
+		return errNoSheetsService
 	}
 
 	responses, err := s.responseRepo.GetByFormID(ctx, formID)
@@ -183,20 +186,27 @@ func (s *Service) BackfillFormResponsesToSheet(ctx context.Context, formID int32
 
 	fields, schemaErr := google.ParseFormSchema(schema)
 
+	return s.appendMissingResponsesToSheet(ctx, sheetID, responses, existingIDs, fields, schemaErr, sheetsService)
+}
+
+func (s *Service) appendMissingResponsesToSheet(
+	ctx context.Context,
+	sheetID string,
+	responses []*Response,
+	existingIDs map[int32]struct{},
+	fields []google.FormField,
+	schemaErr error,
+	sheetsService *google.SheetsService,
+) error {
 	for i := len(responses) - 1; i >= 0; i-- {
 		resp := responses[i]
 		if _, exists := existingIDs[resp.ID]; exists {
 			continue
 		}
 
-		var row []interface{}
-		if schemaErr == nil {
-			row, err = google.ResponseToRow(resp.ID, resp.CreatedAt, resp.Data, fields)
-		} else {
-			row, _, err = google.ResponseToRowWithoutSchema(resp.ID, resp.CreatedAt, resp.Data)
-		}
-		if err != nil {
-			logger.GetLogger().Warn("Failed to convert response to row for backfill", zap.Int32("response_id", resp.ID), zap.Error(err))
+		row, rowErr := buildBackfillRow(resp, fields, schemaErr)
+		if rowErr != nil {
+			logger.GetLogger().Warn("Failed to convert response to row for backfill", zap.Int32("response_id", resp.ID), zap.Error(rowErr))
 			continue
 		}
 
@@ -207,6 +217,15 @@ func (s *Service) BackfillFormResponsesToSheet(ctx context.Context, formID int32
 	}
 
 	return nil
+}
+
+func buildBackfillRow(resp *Response, fields []google.FormField, schemaErr error) ([]interface{}, error) {
+	if schemaErr == nil {
+		return google.ResponseToRow(resp.ID, resp.CreatedAt, resp.Data, fields)
+	}
+
+	row, _, err := google.ResponseToRowWithoutSchema(resp.ID, resp.CreatedAt, resp.Data)
+	return row, err
 }
 
 func (s *Service) removeResponseFromSheetIfEnabled(ctx context.Context, response *Response) {

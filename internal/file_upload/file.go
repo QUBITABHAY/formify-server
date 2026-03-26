@@ -1,9 +1,11 @@
+// Package fileupload provides file upload validation and storage integration.
 package fileupload
 
 import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -18,6 +20,11 @@ import (
 const maxFileSizeBytes = 10 * 1024 * 1024
 const fileBufSize = 512
 const uploadIDLength = 16
+
+var (
+	errCloudinaryResponse       = errors.New("cloudinary response error")
+	errCloudinaryDeleteResponse = errors.New("cloudinary delete returned unexpected result")
+)
 
 type ValidationError struct {
 	Message string
@@ -79,7 +86,7 @@ func (s *Service) UploadFile(ctx context.Context, formID string, file multipart.
 		return nil, fmt.Errorf("cloudinary upload failed: %w", err)
 	}
 	if resp.Error.Message != "" {
-		return nil, fmt.Errorf("cloudinary error: %s", resp.Error.Message)
+		return nil, fmt.Errorf("%w: %s", errCloudinaryResponse, resp.Error.Message)
 	}
 
 	return &UploadResult{
@@ -96,7 +103,7 @@ func (s *Service) DeleteFile(ctx context.Context, publicID string) error {
 		return fmt.Errorf("cloudinary delete failed: %w", err)
 	}
 	if resp.Result != "ok" {
-		return fmt.Errorf("cloudinary delete returned unexpected result: %s", resp.Result)
+		return fmt.Errorf("%w: %s", errCloudinaryDeleteResponse, resp.Result)
 	}
 	return nil
 }

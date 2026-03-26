@@ -1,3 +1,4 @@
+// Package logger provides application-wide structured logging helpers.
 package logger
 
 import (
@@ -10,8 +11,9 @@ import (
 )
 
 var (
-	Logger *zap.Logger        //nolint:gochecknoglobals // Package-level logger singleton used across the app.
-	Sugar  *zap.SugaredLogger //nolint:gochecknoglobals // Package-level sugared logger singleton used across the app.
+	Logger          *zap.Logger        //nolint:gochecknoglobals // Package-level logger singleton used across the app.
+	Sugar           *zap.SugaredLogger //nolint:gochecknoglobals // Package-level sugared logger singleton used across the app.
+	errOddArguments = errors.New("odd number of arguments")
 )
 
 const keyValuePairSize = 2
@@ -88,7 +90,7 @@ func ToField(key string, value interface{}) zap.Field {
 
 func ToFields(values ...interface{}) []zap.Field {
 	if len(values)%keyValuePairSize != 0 {
-		return []zap.Field{zap.Error(errors.New("odd number of arguments"))}
+		return []zap.Field{zap.Error(errOddArguments)}
 	}
 
 	fields := make([]zap.Field, 0, len(values)/keyValuePairSize)

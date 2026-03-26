@@ -1,3 +1,4 @@
+// Package database provides database connection lifecycle helpers.
 package database
 
 import (

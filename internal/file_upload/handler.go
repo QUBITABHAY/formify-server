@@ -1,3 +1,4 @@
+// Package fileupload provides file upload validation and storage integration.
 package fileupload
 
 import (

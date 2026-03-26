@@ -1,3 +1,4 @@
+// Package response contains response domain handlers, services, and storage.
 package response
 
 import (

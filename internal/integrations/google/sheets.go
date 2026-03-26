@@ -2,6 +2,7 @@ package google
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -9,6 +10,8 @@ import (
 )
 
 const fixedResponseHeaders = 2
+
+var errFailedToParseFormSchema = errors.New("failed to parse form schema")
 
 type FormField struct {
 	ID    string `json:"id"`
@@ -40,7 +43,7 @@ func ParseFormSchema(schemaJSON []byte) ([]FormField, error) {
 	}
 
 	log.Printf("Failed to parse form schema")
-	return nil, fmt.Errorf("failed to parse form schema")
+	return nil, errFailedToParseFormSchema
 }
 
 func parseDirectArray(schemaJSON []byte) ([]FormField, error) {
@@ -119,26 +122,7 @@ func extractStringField(field map[string]interface{}, keys []string) string {
 }
 
 func extractLabelFromRaw(field map[string]interface{}) string {
-	// Try label-like fields
-	if label, ok := field["label"].(string); ok && label != "" {
-		return label
-	}
-	if title, ok := field["title"].(string); ok && title != "" {
-		return title
-	}
-	if text, ok := field["text"].(string); ok && text != "" {
-		return text
-	}
-
-	// Fall back to name/placeholder if present
-	if name, ok := field["name"].(string); ok && name != "" {
-		return name
-	}
-	if placeholder, ok := field["placeholder"].(string); ok && placeholder != "" {
-		return placeholder
-	}
-
-	return ""
+	return extractStringField(field, []string{"label", "title", "text", "name", "placeholder"})
 }
 
 func normalizeFields(fields []FormField) []FormField {

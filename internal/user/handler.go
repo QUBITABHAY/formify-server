@@ -1,3 +1,4 @@
+// Package user contains user domain models, services, and HTTP handlers.
 package user
 
 import (

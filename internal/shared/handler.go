@@ -1,3 +1,4 @@
+// Package shared contains common helpers used across handlers and services.
 package shared
 
 import (
