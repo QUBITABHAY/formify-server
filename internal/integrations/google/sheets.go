@@ -19,67 +19,124 @@ type FormField struct {
 func ParseFormSchema(schemaJSON []byte) ([]FormField, error) {
 	log.Printf("Parsing form schema: %s", string(schemaJSON))
 
-	var schema []FormField
-	if err := json.Unmarshal(schemaJSON, &schema); err == nil && len(schema) > 0 {
-		normalized := normalizeFields(schema)
-		log.Printf("Parsed %d fields from direct array", len(normalized))
-		for i, f := range normalized {
-			log.Printf("  Field %d: ID=%s, Label=%s, Name=%s", i, f.ID, f.Label, f.Name)
-		}
-		return normalized, nil
+	// Try parsing as direct array of FormField
+	fields, err := parseDirectArray(schemaJSON)
+	if err == nil && len(fields) > 0 {
+		return normalizeFields(fields), nil
 	}
 
-	var schemaWithFields struct {
-		Fields []FormField `json:"fields"`
-	}
-	if err := json.Unmarshal(schemaJSON, &schemaWithFields); err == nil && len(schemaWithFields.Fields) > 0 {
-		normalized := normalizeFields(schemaWithFields.Fields)
-		log.Printf("Parsed %d fields from 'fields' key", len(normalized))
-		return normalized, nil
+	// Try parsing as object with "fields" key
+	fields, err = parseFieldsObject(schemaJSON)
+	if err == nil && len(fields) > 0 {
+		return normalizeFields(fields), nil
 	}
 
-	var rawSchema []map[string]interface{}
-	if err := json.Unmarshal(schemaJSON, &rawSchema); err == nil {
-		log.Printf("Parsing %d raw objects", len(rawSchema))
-		var fields []FormField
-		for _, field := range rawSchema {
-			log.Printf("  Raw field: %+v", field)
-			f := FormField{}
-			if id, ok := field["id"].(string); ok {
-				f.ID = id
-			} else if id, ok := field["name"].(string); ok {
-				f.ID = id
-			} else if id, ok := field["fieldId"].(string); ok {
-				f.ID = id
-			} else if id, ok := field["key"].(string); ok {
-				f.ID = id
-			}
-
-			if label, ok := field["label"].(string); ok {
-				f.Label = label
-			} else if label, ok := field["title"].(string); ok {
-				f.Label = label
-			} else if label, ok := field["name"].(string); ok && f.Label == "" {
-				f.Label = label
-			} else if label, ok := field["text"].(string); ok {
-				f.Label = label
-			} else if label, ok := field["placeholder"].(string); ok && f.Label == "" {
-				f.Label = label
-			}
-			if typ, ok := field["type"].(string); ok {
-				f.Type = typ
-			}
-			if f.ID != "" || f.Label != "" {
-				fields = append(fields, f)
-			}
-		}
-		normalized := normalizeFields(fields)
-		log.Printf("Extracted %d fields from raw parsing", len(normalized))
-		return normalized, nil
+	// Try parsing as raw objects
+	fields, err = parseRawObjects(schemaJSON)
+	if err == nil && len(fields) > 0 {
+		return normalizeFields(fields), nil
 	}
 
 	log.Printf("Failed to parse form schema")
 	return nil, fmt.Errorf("failed to parse form schema")
+}
+
+func parseDirectArray(schemaJSON []byte) ([]FormField, error) {
+	var schema []FormField
+	if err := json.Unmarshal(schemaJSON, &schema); err != nil {
+		return nil, err
+	}
+	if len(schema) > 0 {
+		log.Printf("Parsed %d fields from direct array", len(schema))
+		for i, f := range schema {
+			log.Printf("  Field %d: ID=%s, Label=%s, Name=%s", i, f.ID, f.Label, f.Name)
+		}
+	}
+	return schema, nil
+}
+
+func parseFieldsObject(schemaJSON []byte) ([]FormField, error) {
+	var schemaWithFields struct {
+		Fields []FormField `json:"fields"`
+	}
+	if err := json.Unmarshal(schemaJSON, &schemaWithFields); err != nil {
+		return nil, err
+	}
+	if len(schemaWithFields.Fields) > 0 {
+		log.Printf("Parsed %d fields from 'fields' key", len(schemaWithFields.Fields))
+	}
+	return schemaWithFields.Fields, nil
+}
+
+func parseRawObjects(schemaJSON []byte) ([]FormField, error) {
+	var rawSchema []map[string]interface{}
+	if err := json.Unmarshal(schemaJSON, &rawSchema); err != nil {
+		return nil, err
+	}
+
+	log.Printf("Parsing %d raw objects", len(rawSchema))
+	fields := make([]FormField, 0, len(rawSchema))
+	for _, field := range rawSchema {
+		f := extractFieldFromRaw(field)
+		if f.ID != "" || f.Label != "" {
+			fields = append(fields, f)
+		}
+	}
+
+	if len(fields) > 0 {
+		log.Printf("Extracted %d fields from raw parsing", len(fields))
+	}
+	return fields, nil
+}
+
+func extractFieldFromRaw(field map[string]interface{}) FormField {
+	log.Printf("  Raw field: %+v", field)
+	f := FormField{}
+
+	// Extract ID
+	f.ID = extractStringField(field, []string{"id", "name", "fieldId", "key"})
+
+	// Extract Label
+	f.Label = extractLabelFromRaw(field)
+
+	// Extract Type
+	if typ, ok := field["type"].(string); ok {
+		f.Type = typ
+	}
+
+	return f
+}
+
+func extractStringField(field map[string]interface{}, keys []string) string {
+	for _, key := range keys {
+		if val, ok := field[key].(string); ok && val != "" {
+			return val
+		}
+	}
+	return ""
+}
+
+func extractLabelFromRaw(field map[string]interface{}) string {
+	// Try label-like fields
+	if label, ok := field["label"].(string); ok && label != "" {
+		return label
+	}
+	if title, ok := field["title"].(string); ok && title != "" {
+		return title
+	}
+	if text, ok := field["text"].(string); ok && text != "" {
+		return text
+	}
+
+	// Fall back to name/placeholder if present
+	if name, ok := field["name"].(string); ok && name != "" {
+		return name
+	}
+	if placeholder, ok := field["placeholder"].(string); ok && placeholder != "" {
+		return placeholder
+	}
+
+	return ""
 }
 
 func normalizeFields(fields []FormField) []FormField {

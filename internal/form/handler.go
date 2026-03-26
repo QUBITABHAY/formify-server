@@ -262,7 +262,7 @@ func (h *Handler) PublishForm(c *echo.Context) error {
 		return err
 	}
 
-	form, err := h.service.PublishForm(c.Request().Context(), int32(id))
+	form, err := h.service.PublishForm(c.Request().Context(), id)
 	if err != nil {
 		return shared.RespondError(c, http.StatusInternalServerError, "Failed to publish form")
 	}
@@ -276,7 +276,7 @@ func (h *Handler) UnpublishForm(c *echo.Context) error {
 		return err
 	}
 
-	form, err := h.service.UnpublishForm(c.Request().Context(), int32(id))
+	form, err := h.service.UnpublishForm(c.Request().Context(), id)
 	if err != nil {
 		return shared.RespondError(c, http.StatusInternalServerError, "Failed to unpublish form")
 	}
@@ -404,7 +404,7 @@ func (h *Handler) UnlinkGoogleSheet(c *echo.Context) error {
 		return err
 	}
 
-	form, err := h.service.UnlinkGoogleSheet(c.Request().Context(), int32(id))
+	form, err := h.service.UnlinkGoogleSheet(c.Request().Context(), id)
 	if err != nil {
 		return shared.RespondError(c, http.StatusInternalServerError, "Failed to unlink Google Sheet")
 	}
