@@ -51,12 +51,12 @@ cp .env.example .env
 
 ### Required Variables
 
-| Variable       | Description                  | Default |
-| -------------- | ---------------------------- | ------- |
-| `DATABASE_URL` | PostgreSQL connection string | —       |
-| `JWT_SECRET`   | JWT signing secret           | —       |
-| `PORT`         | Server port                  | `1323`  |
-| `ENV`          | Runtime mode (`development` enables colored console logs, `production` enables JSON logs) | `development` |
+| Variable       | Description                                                                   | Default       |
+| -------------- | ----------------------------------------------------------------------------- | ------------- |
+| `DATABASE_URL` | PostgreSQL connection string                                                  | -             |
+| `JWT_SECRET`   | JWT signing secret                                                            | -             |
+| `PORT`         | Server port                                                                   | `1323`        |
+| `ENV`          | Runtime mode (`development` = console logs, `production` = JSON logs)        | `development` |
 
 ### Google/Auth Variables
 
@@ -74,6 +74,15 @@ cp .env.example .env
 | Variable | Description |
 | --- | --- |
 | `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | Path to service account JSON key used as fallback for Sheets operations |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Raw JSON service account key (alternative to file path) |
+
+### Optional Upload Variables
+
+| Variable | Description |
+| --- | --- |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name for file upload storage |
+| `CLOUDINARY_API_KEY` | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
 
 Notes:
 
@@ -118,7 +127,15 @@ make db-up
 ### Run Migrations
 
 ```bash
-make db-migrate
+make migrate-up
+```
+
+Other migration helpers:
+
+```bash
+make migrate-down
+make migrate-reset
+make migrate-status
 ```
 
 ### Stop Database
@@ -141,6 +158,20 @@ Run `make help` to see all available commands:
 | `make test`    | Run all tests                      |
 | `make lint`    | Run linter                         |
 | `make format`  | Format code                        |
+| `make vet`     | Run `go vet`                       |
 | `make db-up`   | Start database                     |
 | `make db-down` | Stop database                      |
+| `make migrate-up` | Apply all pending migrations    |
+| `make migrate-down` | Roll back last migration     |
+| `make migrate-status` | Show current migration version |
 | `make sqlc`    | Generate code from SQL             |
+
+## Docker Compose Option
+
+Run the app, migrations, and PostgreSQL together:
+
+```bash
+docker compose up --build
+```
+
+In this mode, API is exposed on `http://localhost:8080`.
