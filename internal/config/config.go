@@ -2,6 +2,7 @@
 package config
 
 import (
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -67,5 +68,10 @@ func Load() *Config {
 	if err := viper.Unmarshal(cfg); err != nil {
 		logger.GetLogger().Fatal("Failed to unmarshal config", zap.Error(err))
 	}
+
+	if port := os.Getenv("PORT"); port != "" {
+		cfg.Port = port
+	}
+
 	return cfg
 }
