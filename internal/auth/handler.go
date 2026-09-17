@@ -62,9 +62,6 @@ func (h *Handler) getCookieDomain() string {
 }
 
 func (h *Handler) getSameSite() http.SameSite {
-	if h.cookieSecure {
-		return http.SameSiteNoneMode
-	}
 	return http.SameSiteLaxMode
 }
 

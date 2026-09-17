@@ -2,6 +2,7 @@
 package fileupload
 
 import (
+	"archive/zip"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -9,6 +10,8 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api"
@@ -70,6 +73,15 @@ func (s *Service) UploadFile(ctx context.Context, formID string, file multipart.
 		return nil, &ValidationError{Message: fmt.Sprintf("file type %q is not allowed", contentType)}
 	}
 
+	if contentType == "application/zip" {
+		if err := validateZipArchive(file, header.Size); err != nil {
+			return nil, err
+		}
+		if _, seekErr := file.Seek(0, 0); seekErr != nil {
+			return nil, fmt.Errorf("failed to reset file position: %w", seekErr)
+		}
+	}
+
 	id, err := randomHex(uploadIDLength)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate upload ID: %w", err)
@@ -123,4 +135,58 @@ func isAllowedMIMEType(contentType string) bool {
 	default:
 		return false
 	}
+}
+
+var dangerousZipExtensions = map[string]bool{
+	".exe": true, ".bat": true, ".cmd": true, ".sh": true,
+	".vbs": true, ".vbe": true, ".js": true, ".jse": true,
+	".wsf": true, ".wsh": true, ".scr": true, ".pif": true,
+	".com": true, ".msi": true, ".dll": true, ".sys": true,
+	".cpl": true, ".reg": true, ".ps1": true, ".ps2": true,
+	".jar": true, ".apk": true, ".app": true, ".dmg": true,
+	".iso": true, ".hta": true,
+}
+
+func validateZipArchive(file multipart.File, size int64) error {
+	zipReader, err := zip.NewReader(file, size)
+	if err != nil {
+		return &ValidationError{Message: "invalid or corrupted zip archive"}
+	}
+
+	const maxTotalUncompressedSize uint64 = 50 * 1024 * 1024 // 50 MB
+	const maxFileCount = 500
+
+	if len(zipReader.File) > maxFileCount {
+		return &ValidationError{Message: fmt.Sprintf("zip contains too many files (maximum allowed is %d)", maxFileCount)}
+	}
+
+	var totalUncompressedSize uint64
+	for _, f := range zipReader.File {
+		// 1. Prevent Zip Slip / Directory Traversal in filenames
+		cleanedPath := filepath.Clean(f.Name)
+		if strings.HasPrefix(cleanedPath, "..") || filepath.IsAbs(cleanedPath) {
+			return &ValidationError{Message: "zip contains invalid file paths"}
+		}
+
+		// Skip directories
+		if f.FileInfo().IsDir() {
+			continue
+		}
+
+		// 2. Block dangerous / executable file types
+		ext := strings.ToLower(filepath.Ext(f.Name))
+		if dangerousZipExtensions[ext] {
+			return &ValidationError{
+				Message: fmt.Sprintf("zip contains restricted executable or script file: %s", filepath.Base(f.Name)),
+			}
+		}
+
+		// 3. Zip bomb check (uncompressed size sum)
+		totalUncompressedSize += f.UncompressedSize64
+		if totalUncompressedSize > maxTotalUncompressedSize {
+			return &ValidationError{Message: "zip archive exceeds maximum uncompressed size of 50 MB"}
+		}
+	}
+
+	return nil
 }

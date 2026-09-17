@@ -129,8 +129,17 @@ func (s *SheetsService) CreateSpreadsheet(ctx context.Context, title string, hea
 }
 
 func (s *SheetsService) AppendRow(ctx context.Context, spreadsheetID string, values []any) error {
+	sanitizedValues := make([]any, len(values))
+	for i, v := range values {
+		if str, ok := v.(string); ok {
+			sanitizedValues[i] = sanitizeFormula(str)
+		} else {
+			sanitizedValues[i] = v
+		}
+	}
+
 	valueRange := &sheets.ValueRange{
-		Values: [][]any{values},
+		Values: [][]any{sanitizedValues},
 	}
 
 	_, err := s.service.Spreadsheets.Values.Append(

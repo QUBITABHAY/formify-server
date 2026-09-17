@@ -3,9 +3,11 @@ package fileupload
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v5"
 
@@ -14,6 +16,7 @@ import (
 
 type FormChecker interface {
 	IsPublished(ctx context.Context, formID int32) (bool, error)
+	GetFormSchema(ctx context.Context, formID int32) ([]byte, error)
 }
 
 type Handler struct {
@@ -39,6 +42,14 @@ func (h *Handler) UploadFile(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusForbidden, "Form is not accepting submissions")
 	}
 
+	schema, err := h.formChecker.GetFormSchema(c.Request().Context(), int32(formID))
+	if err != nil {
+		return shared.RespondError(c, http.StatusNotFound, "Form not found")
+	}
+	if !schemaHasFileUpload(schema) {
+		return shared.RespondError(c, http.StatusBadRequest, "Form does not accept file uploads")
+	}
+
 	file, fileHeader, err := c.Request().FormFile("file")
 	if err != nil {
 		return shared.RespondError(
@@ -61,4 +72,50 @@ func (h *Handler) UploadFile(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, result)
+}
+
+func schemaHasFileUpload(schemaBytes []byte) bool {
+	if len(schemaBytes) == 0 {
+		return false
+	}
+	var data any
+	if err := json.Unmarshal(schemaBytes, &data); err != nil {
+		return false
+	}
+	return inspectNodeForFileUpload(data)
+}
+
+func inspectNodeForFileUpload(node any) bool {
+	switch v := node.(type) {
+	case map[string]any:
+		for k, val := range v {
+			lowerK := strings.ToLower(k)
+			if lowerK == "type" || lowerK == "fieldtype" || lowerK == "elementtype" || lowerK == "component" {
+				if s, ok := val.(string); ok {
+					if isFileUploadType(strings.ToLower(strings.TrimSpace(s))) {
+						return true
+					}
+				}
+			}
+			if inspectNodeForFileUpload(val) {
+				return true
+			}
+		}
+	case []any:
+		for _, item := range v {
+			if inspectNodeForFileUpload(item) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isFileUploadType(t string) bool {
+	switch t {
+	case "file", "file_upload", "fileupload", "file-upload", "upload", "attachment", "image_upload":
+		return true
+	default:
+		return strings.Contains(t, "file") || strings.Contains(t, "upload")
+	}
 }
