@@ -23,6 +23,7 @@ import (
 const maxFileSizeBytes = 10 * 1024 * 1024
 const fileBufSize = 512
 const uploadIDLength = 16
+const mimeZip = "application/zip"
 
 var (
 	errCloudinaryResponse       = errors.New("cloudinary response error")
@@ -55,31 +56,38 @@ func NewService(cfg *config.Config) (*Service, error) {
 	return &Service{cld: cld}, nil
 }
 
-func (s *Service) UploadFile(ctx context.Context, formID string, file multipart.File, header *multipart.FileHeader) (*UploadResult, error) {
+func validateUploadFile(file multipart.File, header *multipart.FileHeader) error {
 	if header.Size > maxFileSizeBytes {
-		return nil, &ValidationError{Message: "file exceeds the maximum allowed size of 10 MB"}
+		return &ValidationError{Message: "file exceeds the maximum allowed size of 10 MB"}
 	}
 
 	buf := make([]byte, fileBufSize)
 	n, err := file.Read(buf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return fmt.Errorf("failed to read file: %w", err)
 	}
 	contentType := http.DetectContentType(buf[:n])
 	if _, seekErr := file.Seek(0, 0); seekErr != nil {
-		return nil, fmt.Errorf("failed to seek file: %w", seekErr)
+		return fmt.Errorf("failed to seek file: %w", seekErr)
 	}
 	if !isAllowedMIMEType(contentType) {
-		return nil, &ValidationError{Message: fmt.Sprintf("file type %q is not allowed", contentType)}
+		return &ValidationError{Message: fmt.Sprintf("file type %q is not allowed", contentType)}
 	}
 
-	if contentType == "application/zip" {
-		if err := validateZipArchive(file, header.Size); err != nil {
-			return nil, err
+	if contentType == mimeZip {
+		if zipErr := validateZipArchive(file, header.Size); zipErr != nil {
+			return zipErr
 		}
 		if _, seekErr := file.Seek(0, 0); seekErr != nil {
-			return nil, fmt.Errorf("failed to reset file position: %w", seekErr)
+			return fmt.Errorf("failed to reset file position: %w", seekErr)
 		}
+	}
+	return nil
+}
+
+func (s *Service) UploadFile(ctx context.Context, formID string, file multipart.File, header *multipart.FileHeader) (*UploadResult, error) {
+	if err := validateUploadFile(file, header); err != nil {
+		return nil, err
 	}
 
 	id, err := randomHex(uploadIDLength)
@@ -130,21 +138,26 @@ func randomHex(n int) (string, error) {
 
 func isAllowedMIMEType(contentType string) bool {
 	switch contentType {
-	case "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", "application/zip":
+	case "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", mimeZip:
 		return true
 	default:
 		return false
 	}
 }
 
-var dangerousZipExtensions = map[string]bool{
-	".exe": true, ".bat": true, ".cmd": true, ".sh": true,
-	".vbs": true, ".vbe": true, ".js": true, ".jse": true,
-	".wsf": true, ".wsh": true, ".scr": true, ".pif": true,
-	".com": true, ".msi": true, ".dll": true, ".sys": true,
-	".cpl": true, ".reg": true, ".ps1": true, ".ps2": true,
-	".jar": true, ".apk": true, ".app": true, ".dmg": true,
-	".iso": true, ".hta": true,
+func isDangerousZipExtension(ext string) bool {
+	switch strings.ToLower(ext) {
+	case ".exe", ".bat", ".cmd", ".sh",
+		".vbs", ".vbe", ".js", ".jse",
+		".wsf", ".wsh", ".scr", ".pif",
+		".com", ".msi", ".dll", ".sys",
+		".cpl", ".reg", ".ps1", ".ps2",
+		".jar", ".apk", ".app", ".dmg",
+		".iso", ".hta":
+		return true
+	default:
+		return false
+	}
 }
 
 func validateZipArchive(file multipart.File, size int64) error {
@@ -174,8 +187,8 @@ func validateZipArchive(file multipart.File, size int64) error {
 		}
 
 		// 2. Block dangerous / executable file types
-		ext := strings.ToLower(filepath.Ext(f.Name))
-		if dangerousZipExtensions[ext] {
+		ext := filepath.Ext(f.Name)
+		if isDangerousZipExtension(ext) {
 			return &ValidationError{
 				Message: fmt.Sprintf("zip contains restricted executable or script file: %s", filepath.Base(f.Name)),
 			}

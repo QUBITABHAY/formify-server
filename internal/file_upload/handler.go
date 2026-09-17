@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -88,27 +89,41 @@ func schemaHasFileUpload(schemaBytes []byte) bool {
 func inspectNodeForFileUpload(node any) bool {
 	switch v := node.(type) {
 	case map[string]any:
-		for k, val := range v {
-			lowerK := strings.ToLower(k)
-			if lowerK == "type" || lowerK == "fieldtype" || lowerK == "elementtype" || lowerK == "component" {
-				if s, ok := val.(string); ok {
-					if isFileUploadType(strings.ToLower(strings.TrimSpace(s))) {
-						return true
-					}
-				}
-			}
-			if inspectNodeForFileUpload(val) {
-				return true
-			}
-		}
+		return inspectMapNode(v)
 	case []any:
-		for _, item := range v {
-			if inspectNodeForFileUpload(item) {
-				return true
-			}
+		return inspectSliceNode(v)
+	default:
+		return false
+	}
+}
+
+func inspectMapNode(m map[string]any) bool {
+	for k, val := range m {
+		if isTypeKey(k) && isTypeValueFileUpload(val) {
+			return true
+		}
+		if inspectNodeForFileUpload(val) {
+			return true
 		}
 	}
 	return false
+}
+
+func isTypeKey(k string) bool {
+	lower := strings.ToLower(k)
+	return lower == "type" || lower == "fieldtype" || lower == "elementtype" || lower == "component"
+}
+
+func isTypeValueFileUpload(val any) bool {
+	s, ok := val.(string)
+	if !ok {
+		return false
+	}
+	return isFileUploadType(strings.ToLower(strings.TrimSpace(s)))
+}
+
+func inspectSliceNode(s []any) bool {
+	return slices.ContainsFunc(s, inspectNodeForFileUpload)
 }
 
 func isFileUploadType(t string) bool {

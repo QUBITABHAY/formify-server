@@ -220,7 +220,7 @@ func ResponseToRowWithoutSchema(responseID int32, submittedAt time.Time, respons
 }
 
 func sanitizeFormula(val string) string {
-	if len(val) > 0 {
+	if val != "" {
 		switch val[0] {
 		case '=', '+', '-', '@', '\t', '\r':
 			return "'" + val

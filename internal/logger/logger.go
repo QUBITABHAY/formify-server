@@ -94,7 +94,7 @@ func ToFields(values ...any) []zap.Field {
 	}
 
 	fields := make([]zap.Field, 0, len(values)/keyValuePairSize)
-	for i := 0; i < len(values); i += keyValuePairSize {
+	for i := 0; i+1 < len(values); i += keyValuePairSize {
 		key := values[i].(string)
 		fields = append(fields, zap.Any(key, values[i+1]))
 	}

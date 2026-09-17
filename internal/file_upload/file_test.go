@@ -12,9 +12,10 @@ type memoryFile struct {
 	*bytes.Reader
 }
 
-func (m *memoryFile) Close() error { return nil }
+func (*memoryFile) Close() error { return nil }
 
-func createTestZip(t *testing.T, files map[string][]byte) (multipart.File, int64) {
+func createTestZip(t *testing.T, files map[string][]byte) (file multipart.File, size int64) {
+	t.Helper()
 	buf := new(bytes.Buffer)
 	zw := zip.NewWriter(buf)
 	for name, content := range files {
