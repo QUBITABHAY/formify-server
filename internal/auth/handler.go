@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/labstack/echo/v5"
+
 	"formify/server/internal/shared"
 	"formify/server/internal/user"
-
-	"github.com/labstack/echo/v5"
 )
 
 const CookieName = "token"
@@ -28,11 +28,7 @@ func NewHandler(service *Service, userService *user.Service, frontendURL string,
 	}
 }
 
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
+//revive:disable-next-line:exported
 type AuthResponse struct {
 	User UserData `json:"user"`
 }
@@ -43,14 +39,41 @@ type UserData struct {
 	Email string `json:"email"`
 }
 
+func (h *Handler) getCookieDomain() string {
+	frontendURL := h.frontendURL
+	for _, prefix := range []string{"https://", "http://"} {
+		if len(frontendURL) > len(prefix) && frontendURL[:len(prefix)] == prefix {
+			frontendURL = frontendURL[len(prefix):]
+			break
+		}
+	}
+
+	for i, ch := range frontendURL {
+		if ch == ':' || ch == '/' {
+			frontendURL = frontendURL[:i]
+			break
+		}
+	}
+
+	if frontendURL == "localhost" || frontendURL == "127.0.0.1" {
+		return ""
+	}
+	return "." + frontendURL
+}
+
+func (*Handler) getSameSite() http.SameSite {
+	return http.SameSiteLaxMode
+}
+
 func (h *Handler) setTokenCookie(c *echo.Context, token string) {
 	cookie := &http.Cookie{
 		Name:     CookieName,
 		Value:    token,
 		Path:     "/",
+		Domain:   h.getCookieDomain(),
 		HttpOnly: true,
 		Secure:   h.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: h.getSameSite(),
 		MaxAge:   int(24 * time.Hour / time.Second),
 	}
 	c.SetCookie(cookie)
@@ -61,38 +84,13 @@ func (h *Handler) clearTokenCookie(c *echo.Context) {
 		Name:     CookieName,
 		Value:    "",
 		Path:     "/",
+		Domain:   h.getCookieDomain(),
 		HttpOnly: true,
 		Secure:   h.cookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: h.getSameSite(),
 		MaxAge:   -1,
 	}
 	c.SetCookie(cookie)
-}
-
-func (h *Handler) Login(c *echo.Context) error {
-	var req LoginRequest
-	if err := c.Bind(&req); err != nil {
-		return shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
-	}
-
-	if req.Email == "" || req.Password == "" {
-		return shared.RespondError(c, http.StatusBadRequest, "Email and password are required")
-	}
-
-	user, token, err := h.service.Login(c.Request().Context(), req.Email, req.Password)
-	if err != nil {
-		return shared.RespondError(c, http.StatusUnauthorized, err.Error())
-	}
-
-	h.setTokenCookie(c, token)
-
-	return c.JSON(http.StatusOK, AuthResponse{
-		User: UserData{
-			ID:    user.ID,
-			Name:  user.Name,
-			Email: user.Email,
-		},
-	})
 }
 
 func (h *Handler) Logout(c *echo.Context) error {

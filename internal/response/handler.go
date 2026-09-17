@@ -1,3 +1,4 @@
+// Package response contains response domain handlers, services, and storage.
 package response
 
 import (
@@ -7,9 +8,9 @@ import (
 	"strconv"
 	"time"
 
-	"formify/server/internal/shared"
-
 	"github.com/labstack/echo/v5"
+
+	"formify/server/internal/shared"
 )
 
 type FormChecker interface {
@@ -31,6 +32,7 @@ type CreateResponseRequest struct {
 	Meta json.RawMessage `json:"meta"`
 }
 
+//revive:disable-next-line:exported
 type ResponseResponse struct {
 	ID        int32           `json:"id"`
 	FormID    int32           `json:"form_id"`
@@ -138,7 +140,7 @@ func (h *Handler) GetFormResponses(c *echo.Context) error {
 		result[i] = responseToResponse(resp)
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"form_id":   formID,
 		"count":     len(responses),
 		"responses": result,

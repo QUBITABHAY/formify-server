@@ -1,0 +1,279 @@
+# Configuration version for golangci-lint
+version: "2"
+
+# Run settings for the linter execution
+run:
+  # Maximum time allowed for linting to complete
+  timeout: 5m
+  # Download mode for dependencies (don't modify go.mod)
+  modules-download-mode: readonly
+  # Allow multiple linters to run in parallel for faster execution
+  allow-parallel-runners: true
+
+# Linter configuration
+linters:
+  # Start with no linters enabled by default, then explicitly enable only the ones we want
+  default: none
+  enable:
+    # Checks for non-ASCII identifiers
+    - asciicheck
+    # Ensures HTTP response bodies are properly closed
+    - bodyclose
+    # Validates canonical header formatting
+    - canonicalheader
+    # Detects loop variables that are copied by range
+    - copyloopvar
+    # Detects oversized or suspicious function parameters
+    - dogsled
+    # Detects duplicate code blocks
+    - dupl
+    # Checks for error assertions on type interface{}
+    - err113
+    # Checks for unchecked errors
+    - errcheck
+    # Checks for incorrect error wrapping
+    - errorlint
+    # Checks switch statements for exhaustiveness
+    - exhaustive
+    # Analyzes function length and complexity
+    - funlen
+    # Checks for global declarations in user code
+    - gochecknoglobals
+    # Checks for init functions that look suspicious
+    - gochecknoinits
+    # Computes cognitive complexity of functions
+    - gocognit
+    # Checks for duplicate constant declarations
+    - goconst
+    # Comprehensive Go code critic with many checks
+    - gocritic
+    # Computes cyclomatic complexity of functions
+    - gocyclo
+    # Checks for missing periods at end of comments
+    - godot
+    # Checks that Printf-like functions are named correctly
+    - goprintffuncname
+    # Finds security issues in Go code
+    - gosec
+    # Examines Go source code and reports suspicious constructs
+    - govet
+    # Detects assignments where value is never used again
+    - ineffassign
+    # Checks for long lines
+    - lll
+    # Detects mirror-like struct values
+    - mirror
+    # Finds commonly misspelled English words
+    - misspell
+    # Detects magic numbers (hardcoded constants)
+    - mnd
+    # Finds naked returns in long functions
+    - nakedret
+    # Finds deeply nested if statements
+    - nestif
+    # Finds making HTTP requests without context
+    - noctx
+    # Checks nolint directives are correctly formatted
+    - nolintlint
+    # Finds slice declarations that could be pre-allocated
+    - prealloc
+    # Fast linter with configurable rules
+    - revive
+    # Checks for unchecked Rows.Err() in sql
+    - rowserrcheck
+    # Advanced static analysis tool
+    - staticcheck
+    # Checks proper usage of testify assertions
+    - testifylint
+    # Detects test helpers that don't use *testing.T correctly
+    - thelper
+    # Detects unnecessary type conversions
+    - unconvert
+    # Reports unused function parameters
+    - unparam
+    # Detects unused constants, variables, functions and types
+    - unused
+    # Reports usage of standard library variables that could be used instead
+    - usestdlibvars
+    # Suggests using standard Go testing features instead of alternatives
+    - usetesting
+    # Checks for unnecessary blank lines
+    - whitespace
+
+  # Configure specific linters with their settings
+  settings:
+    # Duplication detection threshold (lines must be this long to be flagged)
+    dupl:
+      threshold: 100
+    # Exhaustive switch statement checking
+    exhaustive:
+      # Don't automatically consider default case as exhaustive
+      default-signifies-exhaustive: false
+    # Function length complexity thresholds
+    funlen:
+      lines: 100
+      statements: 50
+    # Constant duplication detection
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    # GoLint Critic settings
+    gocritic:
+      # Disable specific problematic checks
+      disabled-checks:
+        - dupImport
+        - ifElseChain
+        - octalLiteral
+        - whyNoLint
+        - wrapperFunc
+      # Enable specific check categories
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    # Cyclomatic complexity threshold (max allowed complexity per function)
+    gocyclo:
+      min-complexity: 10
+    # GoVet settings
+    govet:
+      # Enable shadow variable detection
+      enable:
+        - shadow
+    # Line length limit
+    lll:
+      line-length: 140
+    # Misspelling detection locale
+    misspell:
+      locale: US
+    # Magic number detection checks
+    mnd:
+      checks:
+        - argument
+        - case
+        - condition
+        - return
+    # No-lint comment validation
+    nolintlint:
+      # Require explanations in nolint directives
+      require-explanation: true
+      # Require nolint directives to specify which linter they disable
+      require-specific: true
+      # Report if nolint directive is not used
+      allow-unused: false
+    # Revive linter rules configuration
+    revive:
+      rules:
+        # Disallow blank imports
+        - name: blank-imports
+        # Context should not be used as a function argument
+        - name: context-as-argument
+        # Context keys should be explicitly defined
+        - name: context-keys-type
+        # Check for dot imports (from X import *)
+        - name: dot-imports
+        # Find empty code blocks
+        - name: empty-block
+        # Error names should follow convention
+        - name: error-naming
+        # Error returns should be the last parameter
+        - name: error-return
+        # Error messages should not be capitalized
+        - name: error-strings
+        # Use fmt.Errorf instead of errors.New
+        - name: errorf
+        # Exported names should have comments
+        - name: exported
+          arguments:
+            # Check comment documentation on private type receivers
+            - checkPrivateReceivers
+            # Use clearer language for exported definitions
+            - sayRepetitiveInsteadOfStutters
+        # Flag increment/decrement statements
+        - name: increment-decrement
+        # Check error handling in if blocks
+        - name: indent-error-flow
+        # Range loop issues detection
+        - name: range
+        # Receiver variable naming conventions
+        - name: receiver-naming
+        # Check for redefined builtin identifiers
+        - name: redefines-builtin-id
+        # Simplify if-else chains
+        - name: superfluous-else
+        # Time variable naming conventions
+        - name: time-naming
+        # Check that unexported functions don't return exported types
+        - name: unexported-return
+        # Find unreachable code
+        - name: unreachable-code
+        # Find unused function parameters
+        - name: unused-parameter
+        # Variable declaration location checks
+        - name: var-declaration
+        # Variable naming conventions
+        - name: var-naming
+        # Prevent bare return statements in functions with return types
+        - name: bare-return
+        # Check for boolean literals in expressions
+        - name: bool-literal-in-expr
+        # Validate comment formatting
+        - name: comment-spacings
+        # Suggest using early returns to reduce nesting
+        - name: early-return
+        # Check defer statement usage
+        - name: defer
+        # Detect deeply nested control flow
+        - name: deep-exit
+        # Find unused receiver variables
+        - name: unused-receiver
+        # Suggest using any instead of interface{}
+        - name: use-any
+    # Staticcheck linter settings
+    staticcheck:
+      # Run all staticcheck checks
+      checks:
+        - all
+    # Standard library variable usage checks
+    usestdlibvars:
+      # Check for using time.Layout constants
+      time-layout: true
+
+  # Exclusion rules for specific files and linters
+  exclusions:
+    rules:
+      # Disable duplication checks in test files (tests often have similar patterns)
+      - linters:
+          - dupl
+          - goconst
+          - mnd
+        path: _test\.go
+      # Disable export comment requirement for revive in test files
+      - linters:
+          - revive
+        text: "exported (.+) should have comment"
+
+# Code formatter configuration
+formatters:
+  # Enable these code formatters
+  enable:
+    # Groups and sorts imports
+    - gci
+    # Formats Go code according to standard
+    - gofmt
+  settings:
+    # GCI import grouping configuration
+    gci:
+      sections:
+        # Standard library imports
+        - standard
+        # Third-party imports
+        - default
+        # Local module imports
+        - localmodule
+    # Go imports formatter settings
+    goimports:
+      # Local module prefixes for import grouping
+      local-prefixes:
+        - formify/server

@@ -1,744 +1,274 @@
 # API Documentation
 
-Documentation for the Formify Server API endpoints.
-
----
+Formify Server API reference.
 
 ## Base URL
 
-The API runs on port `1323` by default. Configure via `PORT` environment variable.
+Local default (from `make run`):
 
-```
+```text
 http://localhost:1323
 ```
 
----
+Docker Compose default:
+
+```text
+http://localhost:8080
+```
 
 ## Authentication
 
-Most endpoints require JWT authentication. Include the JWT token in the `Authorization` header:
+Protected routes accept either:
 
-```
-Authorization: Bearer <your-jwt-token>
-```
+- `Authorization: Bearer <jwt>`
+- `token` cookie (HTTP-only, set by Google OAuth callback)
 
-Public endpoints (no authentication required):
+## Route Map
 
-- `POST /api/auth/login` - Email/password login
-- `POST /api/users` - Create user account
-- `GET /api/forms/share/:share_url` - Get published form by share URL
-- `POST /api/forms/:form_id/responses` - Submit form response
-- `GET /api/auth/google` - Google OAuth login
-- `GET /api/auth/google/callback` - Google OAuth callback
+### Public
 
----
+- `GET /` - basic service check
+- `GET /health` - API health check
+- `GET /health/db` - DB health check
+- `POST /api/users` - create user
+- `GET /api/forms/share/:share_url` - get published form
+- `POST /api/forms/:form_id/responses` - submit response
+- `POST /api/forms/:form_id/upload` - upload file for response usage
+- `POST /api/auth/logout` - clear auth cookie
+- `GET /api/auth/google` - start OAuth flow
+- `GET /api/auth/google/callback` - finish OAuth flow and redirect
 
-## Authentication API
+### Protected
 
-### Login
+- `GET /api/auth/me` - current authenticated user
+- `GET /api/users/:id` - user by ID (self only)
+- `GET /api/users/:id/forms` - forms by user (self only)
+- `POST /api/forms` - create form
+- `GET /api/forms/:id` - get form (owner only)
+- `PUT /api/forms/:id` - update form (owner only)
+- `DELETE /api/forms/:id` - delete form (owner only)
+- `POST /api/forms/:id/publish` - publish form
+- `POST /api/forms/:id/unpublish` - unpublish form
+- `POST /api/forms/:id/sheets/create` - create and link Google Sheet
+- `DELETE /api/forms/:id/sheets/link` - unlink Google Sheet
+- `GET /api/forms/:id/responses` - list responses for form
+- `GET /api/responses/:id` - get response by ID
+- `DELETE /api/responses/:id` - delete response
 
-**POST** `/api/auth/login`
+## Request and Response Contracts
 
-Login with email and password.
+### Create User
 
-Behavior:
+`POST /api/users`
 
-- Sets JWT as HTTP-only `token` cookie
-- Returns authenticated user payload
-
-**Request Body:**
+Request:
 
 ```json
 {
-  "email": "user@example.com",
-  "password": "password123"
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "strong-password"
 }
 ```
 
-**Response:** `200 OK`
+Success `201`:
+
+```json
+{
+  "id": 1,
+  "name": "Jane Doe",
+  "email": "jane@example.com"
+}
+```
+
+### Auth Me
+
+`GET /api/auth/me` (protected)
+
+Success `200`:
 
 ```json
 {
   "user": {
     "id": 1,
-    "name": "John Doe",
-    "email": "user@example.com"
+    "name": "Jane Doe",
+    "email": "jane@example.com"
   }
 }
 ```
 
-**Error:** `401 Unauthorized`
-
-```json
-{
-  "error": "Invalid email or password"
-}
-```
-
----
-
-### Google OAuth Login
-
-**GET** `/api/auth/google`
-
-Initiates Google OAuth flow. Redirects to Google login page.
-
----
-
-### Google OAuth Callback
-
-**GET** `/api/auth/google/callback`
-
-Handles OAuth callback from Google.
-
-Behavior:
-
-- Creates or links user account
-- Stores/refreshes Google OAuth tokens for Sheets usage
-- Sets JWT as HTTP-only `token` cookie
-- Redirects to frontend callback URL
-
-**Response:** `307 Temporary Redirect`
-
-**Redirect Target:** `{FRONTEND_URL}/auth/callback`
-
----
-
-## Users API
-
-### Create User
-
-**POST** `/api/users`
-
-Creates a new user account.
-
-**Request Body:**
-
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "secure_password"
-}
-```
-
-**Response:** `201 Created`
-
-```json
-{
-  "id": 1,
-  "name": "John Doe",
-  "email": "john@example.com"
-}
-```
-
----
-
-### Get User
-
-**GET** `/api/users/:id` 🔒
-
-Retrieves a user by ID. Requires authentication.
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": 1,
-  "name": "John Doe",
-  "email": "john@example.com"
-}
-```
-
----
-
-## Forms API
-
 ### Create Form
 
-**POST** `/api/forms` 🔒
+`POST /api/forms` (protected)
 
-Creates a new form with default draft status. Requires authentication.
-
-**Request Body:**
+Request:
 
 ```json
 {
   "name": "Customer Survey",
-  "description": "Optional description",
-  "user_id": 1,
+  "description": "Q2 feedback form",
   "schema": [],
   "settings": {}
 }
 ```
 
-**Response:** `201 Created`
+Success `201`:
 
 ```json
 {
   "id": 1,
   "name": "Customer Survey",
-  "description": "Optional description",
+  "description": "Q2 feedback form",
   "user_id": 1,
   "status": "draft",
   "schema": [],
   "settings": {},
   "share_url": null,
-  "created_at": "2024-01-28T12:00:00Z",
-  "updated_at": "2024-01-28T12:00:00Z"
+  "google_sheet_auto_sync": false,
+  "created_at": "2026-03-27T10:00:00Z",
+  "updated_at": "2026-03-27T10:00:00Z"
 }
 ```
 
----
+### Submit Response
 
-### Get Form
+`POST /api/forms/:form_id/responses`
 
-**GET** `/api/forms/:id` 🔒
-
-Retrieves a form by ID. Requires authentication.
-
-**Response:** `200 OK`
-
-
-### Get Public Form
-
-**GET** `/api/forms/share/:share_url`
-
-Retrieves a published form by share URL. No authentication required.
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": 1,
-  "name": "Customer Survey",
-  "description": "Optional description",
-  "user_id": 1,
-  "status": "published",
-  "schema": [],
-  "settings": {},
-  "share_url": "AbCdEf123...",
-  "created_at": "2024-01-28T12:00:00Z",
-  "updated_at": "2024-01-28T12:00:00Z"
-}
-```
-
-**Error:** `404 Not Found`
-
-```json
-{
-  "error": "Form not found"
-}
-```
-
----
-```json
-{
-  "id": 1,
-  "name": "Customer Survey",
-  "description": "Optional description",
-  "user_id": 1,
-  "status": "draft",
-  "schema": [],
-  "settings": {},
-  "share_url": null,
-  "created_at": "2024-01-28T12:00:00Z",
-  "updated_at": "2024-01-28T12:00:00Z"
-}
-```
-
-**Error:** `404 Not Found`
-
-```json
-{
-  "error": "Form not found"
-}
-```
-
----
-
-### Get User Forms
-
-**GET** `/api/users/:id/forms` 🔒
-
-Retrieves all forms belonging to a user. Requires authentication.
-
-**Response:** `200 OK`
-
-```json
-[
-  {
-    "id": 1,
-    "name": "Customer Survey",
-    "user_id": 1,
-    "status": "draft",
-    "schema": [],
-    "settings": {},
-    ...
-  }
-]
-```
-
----
-
-### Update Form
-
-**PUT** `/api/forms/:id` 🔒
-
-Updates form details. Requires authentication.
-
-**Request Body:**
-
-```json
-{
-  "name": "Updated Survey Name",
-  "description": "Updated description",
-  "schema": [...],
-  "settings": {...}
-}
-```
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": 1,
-  "name": "Updated Survey Name",
-  "description": "Updated description",
-  ...
-}
-```
-
----
-
-### Publish Form
-
-**POST** `/api/forms/:id/publish` 🔒
-
-Sets a form's status to `published`. Requires authentication.
-If the form does not already have a `share_url`, one is generated.
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": 1,
-  "name": "Customer Survey",
-  "status": "published",
-  "share_url": "AbCdEf123...",
-  ...
-}
-```
-
----
-
-### Unpublish Form
-
-**POST** `/api/forms/:id/unpublish` 🔒
-
-Sets a form's status back to `draft`. Requires authentication.
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": 1,
-  "name": "Customer Survey",
-  "status": "draft",
-  ...
-}
-```
-
----
-
-### Delete Form
-
-**DELETE** `/api/forms/:id` 🔒
-
-Deletes a form and all its responses. Requires authentication.
-
-**Response:** `204 No Content`
-
----
-
-## Responses API
-
-### Create Response
-
-**POST** `/api/forms/:form_id/responses`
-
-Submits a response to a form. No authentication required (public endpoint).
-Only published forms accept responses.
-
-**Request Body:**
+Request:
 
 ```json
 {
   "data": {
-    "question1": "answer1",
-    "question2": "answer2"
+    "q1": "Great experience"
   },
   "meta": {
-    "ip": "192.168.1.1",
-    "userAgent": "Mozilla/5.0..."
+    "source": "web"
   }
 }
 ```
 
-**Response:** `201 Created`
+Success `201`:
 
 ```json
 {
-  "id": 1,
+  "id": 10,
   "form_id": 1,
   "data": {
-    "question1": "answer1",
-    "question2": "answer2"
+    "q1": "Great experience"
   },
   "meta": {
-    "ip": "192.168.1.1",
-    "userAgent": "Mozilla/5.0..."
+    "source": "web"
   },
-  "created_at": "2024-01-28T12:00:00Z"
+  "created_at": "2026-03-27T10:05:00Z"
 }
 ```
 
-**Error:** `403 Forbidden`
+### List Form Responses
+
+`GET /api/forms/:id/responses` (protected)
+
+Success `200`:
 
 ```json
 {
-  "error": "Form is not accepting responses"
-}
-```
-
-**Error:** `404 Not Found`
-
-```json
-{
-  "error": "Form not found"
-}
-```
-
----
-
-### Get Response
-
-**GET** `/api/responses/:id` 🔒
-
-Retrieves a specific response by ID. Requires authentication.
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": 1,
   "form_id": 1,
-  "data": {...},
-  "meta": {...},
-  "created_at": "2024-01-28T12:00:00Z"
-}
-```
-
----
-
-### Get Form Responses
-
-**GET** `/api/forms/:id/responses` 🔒
-
-Retrieves all responses for a form. Requires authentication.
-
-**Response:** `200 OK`
-
-```json
-{
+  "count": 1,
   "responses": [
     {
-      "id": 1,
+      "id": 10,
       "form_id": 1,
-      "data": {...},
-      "meta": {...},
-      "created_at": "2024-01-28T12:00:00Z"
+      "data": {
+        "q1": "Great experience"
+      },
+      "meta": {
+        "source": "web"
+      },
+      "created_at": "2026-03-27T10:05:00Z"
     }
-  ],
-  "count": 1
+  ]
 }
 ```
 
----
+### Upload File
 
-### Delete Response
+`POST /api/forms/:form_id/upload`
 
-**DELETE** `/api/responses/:id` 🔒
+Request content type: `multipart/form-data`
 
-Deletes a specific response. Requires authentication.
+Required field:
 
-**Response:** `204 No Content`
+- `file` (max 10 MB)
 
----
+Allowed file types:
 
-## Google Sheets Integration API
+- `image/jpeg`
+- `image/png`
+- `image/gif`
+- `image/webp`
+- `application/pdf`
+- `application/zip`
 
-### Link Google Sheet to Form
-
-**POST** `/api/forms/:id/sheets/link` 🔒
-
-Links an existing Google Sheet to a form. Requires authentication.
-
-**Request Body:**
+Success `200`:
 
 ```json
 {
-  "spreadsheet_id": "YOUR_SPREADSHEET_ID"
+  "public_id": "formify/1/abc123",
+  "url": "https://res.cloudinary.com/...",
+  "format": "png",
+  "bytes": 24567
 }
 ```
-
-`google_sheet_auto_sync` is enabled when linking.
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": 1,
-  "name": "Customer Survey",
-  "google_sheet_id": "YOUR_SPREADSHEET_ID",
-  "google_sheet_name": "Sheet Name",
-  "google_sheet_linked_at": "2026-02-19T12:00:00Z",
-  "google_sheet_auto_sync": true,
-  ...
-}
-```
-
-**Error:** `400 Bad Request`
-
-```json
-{
-  "error": "Cannot access spreadsheet. Make sure it's shared with the service account."
-}
-```
-
-**Error:** `503 Service Unavailable`
-
-```json
-{
-  "error": "Google Sheets integration is not configured"
-}
-```
-
----
 
 ### Create and Link Google Sheet
 
-**POST** `/api/forms/:id/sheets/create` 🔒
+`POST /api/forms/:id/sheets/create` (protected)
 
-Creates a new Google Sheet and links it to the form. Form responses are exported with appropriate column headers. Requires authentication.
-
-**Request Body:**
+Request (optional body):
 
 ```json
 {
-  "title": "Optional Custom Title"
+  "title": "Survey Responses"
 }
 ```
 
-If `title` is omitted, defaults to `"Form Name - Responses"`.
-
-**Response:** `201 Created`
+Success `201`:
 
 ```json
 {
   "form": {
     "id": 1,
     "name": "Customer Survey",
-    "google_sheet_id": "GENERATED_ID",
-    "google_sheet_name": "Customer Survey - Responses",
-    "google_sheet_auto_sync": true,
-    ...
+    "google_sheet_id": "spreadsheet_id",
+    "google_sheet_name": "Survey Responses",
+    "google_sheet_auto_sync": true
   },
-  "spreadsheet_id": "GENERATED_ID",
-  "spreadsheet_url": "https://docs.google.com/spreadsheets/d/GENERATED_ID"
+  "spreadsheet_id": "spreadsheet_id",
+  "spreadsheet_url": "https://docs.google.com/spreadsheets/d/spreadsheet_id"
 }
 ```
 
-**Note:** The new spreadsheet will have "Form Responses" sheet with headers: "Submission ID", "Submitted At", followed by form field names.
+## OAuth Flow
 
----
+1. Call `GET /api/auth/google`.
+2. Complete Google sign-in and consent.
+3. Backend handles `GET /api/auth/google/callback`.
+4. Backend sets `token` cookie and redirects to:
+   `FRONTEND_URL/auth/callback`
 
-### Unlink Google Sheet
+## Error Format
 
-**DELETE** `/api/forms/:id/sheets/link` 🔒
-
-Removes the Google Sheet link from a form. Requires authentication.
-
-**Response:** `200 OK`
+Errors use JSON with an `error` field.
 
 ```json
 {
-  "id": 1,
-  "name": "Customer Survey",
-  "google_sheet_id": null,
-  "google_sheet_name": null,
-  "google_sheet_auto_sync": false,
-  ...
+  "error": "Form not found"
 }
 ```
 
----
+Common statuses:
 
-### Sheets Auth Strategy
-
-When creating/syncing sheets data, the server chooses credentials in this order:
-
-1. Form owner's Google OAuth access token (+ refresh token if available)
-2. Service account key (`GOOGLE_SERVICE_ACCOUNT_KEY_PATH`) fallback
-
-If neither is available, Sheets operations return service unavailable.
-
----
-
-### Auto-Sync Behavior
-
-When a form response is submitted and `google_sheet_auto_sync` is enabled:
-
-1. Response is saved to database (synchronously)
-2. Background task appends response to the linked Google Sheet (asynchronously)
-3. Response data is converted to spreadsheet row format matching form schema
-4. Any sync errors are logged but do not affect response creation
-
-**Note:** Auto-sync errors do not cause the response submission to fail. Check server logs for sync issues.
-
----
-
-## Health Check Endpoints
-
-### Basic Health Check
-
-**GET** `/health`
-
-Returns server status.
-
-**Response:** `200 OK`
-
-```json
-{
-  "status": "ok"
-}
-```
-
----
-
-### Database Health Check
-
-**GET** `/health/db`
-
-Checks database connectivity.
-
-**Response:** `200 OK`
-
-```json
-{
-  "status": "ok",
-  "database": "connected"
-}
-```
-
----
-
-## Architecture
-
-### Handler (`internal/form/handler.go`)
-
-HTTP handlers that parse requests and return JSON responses.
-
-| Handler         | Route                         | Auth | Description       |
-| --------------- | ----------------------------- | ---- | ----------------- |
-| `CreateForm`    | POST /api/forms               | 🔒   | Create a new form |
-| `GetForm`       | GET /api/forms/:id            | 🔒   | Get form by ID    |
-| `GetPublicFormsByShareURL` | GET /api/forms/share/:share_url |      | Get form by share URL |
-| `GetUserForms`  | GET /api/users/:id/forms      | 🔒   | Get user's forms  |
-| `UpdateForm`    | PUT /api/forms/:id            | 🔒   | Update form       |
-| `PublishForm`   | POST /api/forms/:id/publish   | 🔒   | Publish form      |
-| `UnpublishForm` | POST /api/forms/:id/unpublish | 🔒   | Unpublish form    |
-| `DeleteForm`    | DELETE /api/forms/:id         | 🔒   | Delete form       |
-
-### Service (`internal/form/service.go`)
-
-Business logic layer with validation and defaults.
-
-| Method                  | Description                                        |
-| ----------------------- | -------------------------------------------------- |
-| `CreateForm`            | Creates form with default status, schema, settings |
-| `GetFormByID`           | Retrieves form by ID                               |
-| `GetFormByShareURL`     | Retrieves form by share URL                        |
-| `GetUserForms`          | Gets all forms for a user                          |
-| `GetUserPublishedForms` | Gets published forms only                          |
-| `UpdateForm`            | Updates form fields                                |
-| `PublishForm`           | Sets status to published                           |
-| `UnpublishForm`         | Sets status to draft                               |
-| `SetShareURL`           | Sets unique share URL                              |
-| `DeleteForm`            | Deletes form                                       |
-
-### Repository (`internal/form/repository.go`)
-
-Data access layer using sqlc-generated queries.
-
-| Method                 | SQL Query                    |
-| ---------------------- | ---------------------------- |
-| `Create`               | `CreateForm`                 |
-| `GetByID`              | `GetFormByID`                |
-| `GetByShareURL`        | `GetFormByShareURL`          |
-| `GetByUserID`          | `ListFormsByUserID`          |
-| `GetPublishedByUserID` | `ListPublishedFormsByUserID` |
-| `Update`               | `UpdateForm`                 |
-| `UpdateStatus`         | `UpdateFormStatus`           |
-| `UpdateShareURL`       | `UpdateFormShareURL`         |
-| `Delete`               | `DeleteForm`                 |
-
----
-
-## Project Structure
-
-```
-internal/
-  ├── config/          - Configuration management
-  ├── database/        - Database connection and migrations
-  │   ├── migrations/  - SQL migration files
-  │   ├── queries/     - SQL query files for sqlc
-  │   └── schema/      - Database schema definitions
-  ├── db/              - Generated sqlc code
-  ├── form/            - Form domain (handler, service, repository, model)
-  ├── user/            - User domain (handler, service, repository, model)
-  │   └── oauth/       - OAuth providers (Google)
-  ├── response/        - Response domain (handler, service, repository, model)
-  ├── middleware/      - Auth middleware
-  └── shared/          - Shared utilities and helpers
-```
-
----
-
-## Error Responses
-
-All error responses follow this format:
-
-```json
-{
-  "error": "Error message description"
-}
-```
-
-Common HTTP status codes:
-
-- `400 Bad Request` - Invalid request body or parameters
-- `401 Unauthorized` - Missing or invalid authentication token
-- `404 Not Found` - Resource not found
-- `500 Internal Server Error` - Server error
-
----
-
-## Notes
-
-- 🔒 indicates endpoints that require JWT authentication
-- All timestamps are in ISO 8601 format (UTC)
-- JSON fields with `null` values may be omitted from responses
-- `schema` field defaults to `[]` if not provided
-- `settings` field defaults to `{}` if not provided
-- Forms default to `draft` status when created
+- `400` bad input or invalid path params
+- `401` unauthorized or missing Google OAuth token (for Sheets)
+- `403` access denied or form not accepting submissions
+- `404` resource not found
+- `500` internal server error

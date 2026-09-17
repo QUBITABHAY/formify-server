@@ -12,9 +12,12 @@ type Service struct {
 	responseRepo response.Repository
 }
 
+//revive:disable-next-line:exported
 type FormGetterAdapter struct {
 	service *Service
 }
+
+const shareURLLength = 12
 
 func NewService(formRepo Repository, responseRepo response.Repository) *Service {
 	return &Service{formRepo: formRepo, responseRepo: responseRepo}
@@ -59,7 +62,7 @@ func (s *Service) PublishForm(ctx context.Context, id int32) (*Form, error) {
 		return nil, err
 	}
 	if form.ShareURL == nil {
-		shareURL, err := shared.GenerateShareURL(12)
+		shareURL, err := shared.GenerateShareURL(shareURLLength)
 		if err != nil {
 			return nil, err
 		}
@@ -99,6 +102,14 @@ func (s *Service) IsPublished(ctx context.Context, formID int32) (bool, error) {
 	return form.Status == StatusPublished, nil
 }
 
+func (s *Service) GetFormSchema(ctx context.Context, formID int32) ([]byte, error) {
+	form, err := s.formRepo.GetByID(ctx, formID)
+	if err != nil {
+		return nil, err
+	}
+	return form.Schema, nil
+}
+
 func (s *Service) LinkGoogleSheet(ctx context.Context, id int32, sheetID, sheetName string, autoSync bool) (*Form, error) {
 	return s.formRepo.LinkGoogleSheet(ctx, id, sheetID, sheetName, autoSync)
 }
@@ -119,6 +130,9 @@ func NewFormGetterAdapter(service *Service) *FormGetterAdapter {
 	return &FormGetterAdapter{service: service}
 }
 
-func (a *FormGetterAdapter) GetFormByID(ctx context.Context, id int32) (schema []byte, sheetID *string, autoSync bool, userID int32, err error) {
+func (a *FormGetterAdapter) GetFormByID(
+	ctx context.Context,
+	id int32,
+) (schema []byte, sheetID *string, autoSync bool, userID int32, err error) {
 	return a.service.GetFormForSheets(ctx, id)
 }
