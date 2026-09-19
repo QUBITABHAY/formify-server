@@ -18,6 +18,7 @@ var errFormNotFound = errors.New("form not found")
 type mockFormChecker struct {
 	isPublishedFunc    func(ctx context.Context, formID int32) (bool, error)
 	getFormOwnerIDFunc func(ctx context.Context, formID int32) (int32, error)
+	getFormSchemaFunc  func(ctx context.Context, formID int32) ([]byte, error)
 }
 
 func (m *mockFormChecker) IsPublished(ctx context.Context, formID int32) (bool, error) {
@@ -32,6 +33,13 @@ func (m *mockFormChecker) GetFormOwnerID(ctx context.Context, formID int32) (int
 		return m.getFormOwnerIDFunc(ctx, formID)
 	}
 	return 1, nil
+}
+
+func (m *mockFormChecker) GetFormSchema(ctx context.Context, formID int32) ([]byte, error) {
+	if m.getFormSchemaFunc != nil {
+		return m.getFormSchemaFunc(ctx, formID)
+	}
+	return nil, nil
 }
 
 func TestHandler_CreateResponse(t *testing.T) {
@@ -262,5 +270,46 @@ func TestHandler_DeleteResponse(t *testing.T) {
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("expected status 204, got %d", rec.Code)
+	}
+}
+
+func TestHandler_CreateResponse_Quiz(t *testing.T) {
+	e := echo.New()
+	schemaJSON := `{"isQuiz":true,"fields":[{"id":"q1","title":"Capital","correctAnswer":"Paris","points":5}]}`
+	mockChecker := &mockFormChecker{
+		getFormSchemaFunc: func(_ context.Context, _ int32) ([]byte, error) {
+			return []byte(schemaJSON), nil
+		},
+	}
+	repo := &mockRepository{
+		createFunc: func(_ context.Context, resp *Response) error {
+			resp.ID = 51
+			return nil
+		},
+	}
+	h := NewHandler(NewService(repo, nil, nil, nil), mockChecker)
+
+	body := `{"data":{"q1":"Paris"},"meta":{"source":"web"}}`
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/forms/5/responses", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/api/forms/:form_id/responses")
+	c.SetPathValues(echo.PathValues{{Name: "form_id", Value: "5"}})
+
+	if err := h.CreateResponse(c); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d", rec.Code)
+	}
+
+	var resp ResponseResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.QuizResult == nil || resp.QuizResult.Score != 5 || resp.QuizResult.MaxScore != 5 {
+		t.Fatalf("expected quiz score 5/5, got: %+v", resp.QuizResult)
 	}
 }

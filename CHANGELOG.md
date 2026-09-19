@@ -6,6 +6,19 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ## [Release 0.0.2]
 
+### Added
+
+- **Server-Side Quiz Scoring Engine**: Added `internal/response/quiz.go` to securely calculate quiz scores, max points, and question breakdowns upon response submission against the database schema, storing results in response metadata.
+- **Option Normalization & Case-Insensitive Matching**: Added support for normalizing option labels <-> option values, case-insensitive string matching, and array-order-independent multi-select comparisons.
+- **Auto-Detection for Quiz Schemas**: Automatically enables scoring if any field contains `correctAnswer` even if top-level `isQuiz` is omitted.
+- **Unit Testing Suite**: Added comprehensive unit test suites for response quiz evaluation (`internal/response/quiz_test.go`), response handlers (`internal/response/handler_test.go`), user services, and Google authentication flows.
+
+### Changed
+
+- **Response API Payload**: Included `quiz_result` in `ResponseResponse` for `POST /api/forms/:id/responses` and `GET /api/forms/:id/responses`.
+- **Linter & Code Quality Compliance**: Refactored response and file upload handlers to strictly comply with `golangci-lint` rules (keeping cyclomatic complexity $\le 10$).
+- **CI Workflow**: Updated GitHub Actions to run test and lint pipelines against the `development` branch.
+
 ### Security
 
 - **CSRF Cookie Hardening**: Configured authentication session cookies with `SameSite=Lax` mode unconditionally in `internal/auth/handler.go`, preventing cross-site cookie transmission and protecting mutating endpoints from Cross-Site Request Forgery (CSRF).
