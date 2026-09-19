@@ -9,7 +9,6 @@ import (
 
 const nullJSON = "null"
 
-
 type QuizFieldResult struct {
 	FieldID       string `json:"fieldId"`
 	Title         string `json:"title"`
