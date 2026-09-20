@@ -66,11 +66,8 @@ func TestHandler_getSameSite(t *testing.T) {
 	if !found.HttpOnly {
 		t.Fatal("cookie should be HttpOnly")
 	}
-	if found.SameSite != http.SameSiteNoneMode {
+	if found.SameSite != http.SameSiteLaxMode {
 		t.Fatalf("unexpected SameSite: got %v", found.SameSite)
-	}
-	if !found.Secure {
-		t.Fatal("cookie should be Secure when SameSite=None")
 	}
 }
 

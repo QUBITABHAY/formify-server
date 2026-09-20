@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project follows Semantic Versioning.
 
+## [Release 0.0.2]
+
+### Added
+
+- **Server-Side Quiz Scoring Engine**: Added `internal/response/quiz.go` to securely calculate quiz scores, max points, and question breakdowns upon response submission against the database schema, storing results in response metadata.
+- **Option Normalization & Case-Insensitive Matching**: Added support for normalizing option labels <-> option values, case-insensitive string matching, and array-order-independent multi-select comparisons.
+- **Auto-Detection for Quiz Schemas**: Automatically enables scoring if any field contains `correctAnswer` even if top-level `isQuiz` is omitted.
+- **Unit Testing Suite**: Added comprehensive unit test suites for response quiz evaluation (`internal/response/quiz_test.go`), response handlers (`internal/response/handler_test.go`), user services, and Google authentication flows.
+
+### Changed
+
+- **Response API Payload**: Included `quiz_result` in `ResponseResponse` for `POST /api/forms/:id/responses` and `GET /api/forms/:id/responses`.
+- **Linter & Code Quality Compliance**: Refactored response and file upload handlers to strictly comply with `golangci-lint` rules (keeping cyclomatic complexity $\le 10$).
+- **CI Workflow**: Updated GitHub Actions to run test and lint pipelines against the `development` branch.
+
+### Security
+
+- **CSRF Cookie Hardening**: Configured authentication session cookies with `SameSite=Lax` mode unconditionally in `internal/auth/handler.go`, preventing cross-site cookie transmission and protecting mutating endpoints from Cross-Site Request Forgery (CSRF).
+- **Google Sheets Formula Injection Sanitization**: Sanitized spreadsheet cell values in `internal/integrations/google` by prepending a single quote `'` to inputs beginning with formula triggers (`=`, `+`, `-`, `@`, `\t`, `\r`) during row formatting and `AppendRow`.
+- **Public Form Metadata & Quiz Answer Key Stripping**: Purged `correctAnswer` and `correct_answer` fields recursively from form schemas returned by `GET /api/forms/share/:share_url` and omitted internal Google Sheet metadata to prevent answer key and integration data leakage to respondents.
+- **Safe ZIP Archive Inspection**: Re-enabled `application/zip` support with in-memory archive inspection in `internal/file_upload`: rejects dangerous executable and script files (`.exe`, `.bat`, `.sh`, `.vbs`, etc.), blocks directory traversal (`../`), and mitigates decompression bombs (max 500 files, 50MB uncompressed limit).
+- **Form Upload Schema Verification**: Enforced verification that target forms actively include a file upload field before permitting file uploads.
+
+### Performance
+
+- **Neon PostgreSQL Connection Pool Tuning**: Configured `pgxpool` with `MinConns = 3` to keep warm connections alive (eliminating 80–150ms cold-start TLS handshakes with Neon), `MaxConns = 20`, and explicit connection idle/lifetime bounds.
+
+### Fixed
+
+- **Async Sheets Synchronization Context**: Fixed goroutine cancellation in background Google Sheets sync by wrapping request contexts with `context.WithoutCancel`.
+
 ## [Released 0.0.1]
 
 ### Added

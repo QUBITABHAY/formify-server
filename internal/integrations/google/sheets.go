@@ -219,12 +219,22 @@ func ResponseToRowWithoutSchema(responseID int32, submittedAt time.Time, respons
 	return row, headers, nil
 }
 
+func sanitizeFormula(val string) string {
+	if val != "" {
+		switch val[0] {
+		case '=', '+', '-', '@', '\t', '\r':
+			return "'" + val
+		}
+	}
+	return val
+}
+
 func formatValue(value any) string {
 	switch v := value.(type) {
 	case nil:
 		return ""
 	case string:
-		return v
+		return sanitizeFormula(v)
 	case float64:
 		return fmt.Sprintf("%v", v)
 	case bool:
@@ -240,8 +250,8 @@ func formatValue(value any) string {
 			}
 			result += fmt.Sprintf("%v", item)
 		}
-		return result
+		return sanitizeFormula(result)
 	default:
-		return fmt.Sprintf("%v", v)
+		return sanitizeFormula(fmt.Sprintf("%v", v))
 	}
 }

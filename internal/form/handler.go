@@ -188,7 +188,52 @@ func (h *Handler) GetPublicFormsByShareURL(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusNotFound, "Form not found")
 	}
 
-	return c.JSON(http.StatusOK, formToResponse(form))
+	resp := formToResponse(form)
+	resp.GoogleSheetID = nil
+	resp.GoogleSheetName = nil
+	resp.GoogleSheetLinkedAt = nil
+	resp.GoogleSheetAutoSync = false
+
+	if len(resp.Schema) > 0 {
+		resp.Schema = stripCorrectAnswersFromSchema(resp.Schema)
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+func stripCorrectAnswersFromSchema(schemaRaw json.RawMessage) json.RawMessage {
+	if len(schemaRaw) == 0 {
+		return schemaRaw
+	}
+	var parsed any
+	if err := json.Unmarshal(schemaRaw, &parsed); err != nil {
+		return schemaRaw
+	}
+	cleaned := stripFieldRecursively(parsed, "correctAnswer")
+	encoded, err := json.Marshal(cleaned)
+	if err != nil {
+		return schemaRaw
+	}
+	return json.RawMessage(encoded)
+}
+
+func stripFieldRecursively(node any, fieldNameToRemove string) any {
+	switch v := node.(type) {
+	case map[string]any:
+		delete(v, fieldNameToRemove)
+		delete(v, "correct_answer")
+		for k, child := range v {
+			v[k] = stripFieldRecursively(child, fieldNameToRemove)
+		}
+		return v
+	case []any:
+		for i, child := range v {
+			v[i] = stripFieldRecursively(child, fieldNameToRemove)
+		}
+		return v
+	default:
+		return v
+	}
 }
 
 func (h *Handler) UpdateForm(c *echo.Context) error {

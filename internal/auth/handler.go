@@ -61,10 +61,7 @@ func (h *Handler) getCookieDomain() string {
 	return "." + frontendURL
 }
 
-func (h *Handler) getSameSite() http.SameSite {
-	if h.cookieSecure {
-		return http.SameSiteNoneMode
-	}
+func (*Handler) getSameSite() http.SameSite {
 	return http.SameSiteLaxMode
 }
 

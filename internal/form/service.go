@@ -102,6 +102,14 @@ func (s *Service) IsPublished(ctx context.Context, formID int32) (bool, error) {
 	return form.Status == StatusPublished, nil
 }
 
+func (s *Service) GetFormSchema(ctx context.Context, formID int32) ([]byte, error) {
+	form, err := s.formRepo.GetByID(ctx, formID)
+	if err != nil {
+		return nil, err
+	}
+	return form.Schema, nil
+}
+
 func (s *Service) LinkGoogleSheet(ctx context.Context, id int32, sheetID, sheetName string, autoSync bool) (*Form, error) {
 	return s.formRepo.LinkGoogleSheet(ctx, id, sheetID, sheetName, autoSync)
 }

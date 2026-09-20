@@ -49,7 +49,8 @@ func (s *Service) CreateResponse(ctx context.Context, response *Response) error 
 	}
 
 	if s.formGetter != nil {
-		go s.syncResponseToSheetIfEnabled(ctx, response)
+		bgCtx := context.WithoutCancel(ctx)
+		go s.syncResponseToSheetIfEnabled(bgCtx, response)
 	}
 
 	return nil
@@ -157,7 +158,8 @@ func (s *Service) DeleteResponse(ctx context.Context, id int32) error {
 		return nil
 	}
 
-	go s.removeResponseFromSheetIfEnabled(ctx, response)
+	bgCtx := context.WithoutCancel(ctx)
+	go s.removeResponseFromSheetIfEnabled(bgCtx, response)
 
 	return nil
 }

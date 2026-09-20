@@ -16,6 +16,7 @@ import (
 type FormChecker interface {
 	IsPublished(ctx context.Context, formID int32) (bool, error)
 	GetFormOwnerID(ctx context.Context, formID int32) (int32, error)
+	GetFormSchema(ctx context.Context, formID int32) ([]byte, error)
 }
 
 type Handler struct {
@@ -34,21 +35,26 @@ type CreateResponseRequest struct {
 
 //revive:disable-next-line:exported
 type ResponseResponse struct {
-	ID        int32           `json:"id"`
-	FormID    int32           `json:"form_id"`
-	Data      json.RawMessage `json:"data"`
-	Meta      json.RawMessage `json:"meta"`
-	CreatedAt time.Time       `json:"created_at"`
+	ID         int32           `json:"id"`
+	FormID     int32           `json:"form_id"`
+	Data       json.RawMessage `json:"data"`
+	Meta       json.RawMessage `json:"meta"`
+	CreatedAt  time.Time       `json:"created_at"`
+	QuizResult *QuizResult     `json:"quiz_result,omitempty"`
 }
 
 func responseToResponse(resp *Response) ResponseResponse {
-	return ResponseResponse{
+	res := ResponseResponse{
 		ID:        resp.ID,
 		FormID:    resp.FormID,
 		Data:      resp.Data,
 		Meta:      resp.Meta,
 		CreatedAt: resp.CreatedAt,
 	}
+	if quizRes := extractQuizResultFromMeta(resp.Meta); quizRes != nil {
+		res.QuizResult = quizRes
+	}
+	return res
 }
 
 func (h *Handler) CreateResponse(c *echo.Context) error {
@@ -70,10 +76,14 @@ func (h *Handler) CreateResponse(c *echo.Context) error {
 		return shared.RespondError(c, http.StatusBadRequest, "Invalid request body")
 	}
 
+	schemaBytes, _ := h.formChecker.GetFormSchema(c.Request().Context(), int32(formID))
+	quizResult := evaluateQuiz(schemaBytes, req.Data)
+	metaBytes := attachQuizResultToMeta(req.Meta, quizResult)
+
 	response := &Response{
 		FormID: int32(formID),
 		Data:   req.Data,
-		Meta:   req.Meta,
+		Meta:   metaBytes,
 	}
 
 	if err := h.service.CreateResponse(c.Request().Context(), response); err != nil {
